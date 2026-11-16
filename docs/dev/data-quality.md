@@ -34,6 +34,7 @@ features, **P** prices, **O** operations. Status: **fixed**, **mitigated** (redu
 | P5 | First day of an interval compares two companies | mitigated (rule) | EVHC +210% on 2016-12-02 |
 | P6 | Corwin-Schultz floor biases the mean up | fixed | spread 2.5× too high at 0.2% |
 | P7 | Free price history starts in 2016 | decided | see decision D3 |
+| P8 | Odd lots are missing from minute-bar volume | mitigated | false high costs for high-priced stocks |
 | O1 | Long workflow green although a step may fail | mitigated | silent missing data |
 | O2 | Artifact download timed out | fixed | 1 of 6 shards missing |
 
@@ -204,6 +205,16 @@ features, **P** prices, **O** operations. Status: **fixed**, **mitigated** (redu
 
 ### P7 — Free price history starts in 2016 (decided)
 - 2010-2015 has reports but no prices. See [decisions.md](decisions.md) D3.
+
+### P8 — Odd lots are missing from minute-bar volume (mitigated)
+- **Seen:** for high-priced, less traded stocks (IT, ZBRA, ANSS, VRSN, about $200-400), minute bars hold only 8-12% of
+  the daily volume in the first hour, against 18-28% for the largest stocks, and 30-44% of first-hour minutes have
+  no bar.
+- **Cause:** trades under 100 shares (odd lots) do not count in consolidated bar volume or prices; at high prices
+  many trades are odd lots.
+- **Fix:** the smaller group of the execution study is taken from stocks under $150 (minute coverage 88-100%).
+- **Remaining:** these stocks still show about 10% of daily volume in the first hour (partly real: smaller stocks
+  trade more in the closing auction). Impact uses the observed volume, so costs are, if anything, too high.
 
 ## Operations
 

@@ -77,7 +77,16 @@ PYTHONPATH=src .venv/bin/python -u scripts/signal_study.py --period test --prere
 ### Pitfall-bias table — `scripts/pitfalls.py`
 Reruns the study on 2016-2021 with one guard off at a time; refuses dates in the test period. About 1 min.
 
-## 6. Checks before a commit
+## 6. Execution study
+```bash
+PYTHONPATH=src .venv/bin/python -u scripts/load_minutes.py        # 20 stocks, 2023-2024, first hour; about 4 min
+PYTHONPATH=src .venv/bin/python -u scripts/execution_study.py --eval val --steps 1000000   # design work, about 4 min
+PYTHONPATH=src .venv/bin/python -u scripts/execution_study.py --eval test --steps 600000 --seed 0   # final, x3 seeds
+PYTHONPATH=src .venv/bin/python -u scripts/capacity.py            # needs the pooled signal study
+```
+Design changes use `--eval val` only (train 2023-01..09, evaluate 2023-10..12). `--eval test` (2024) is the final run.
+
+## 7. Checks before a commit
 ```bash
 make check     # ruff + pytest + mkdocs build --strict
 ```

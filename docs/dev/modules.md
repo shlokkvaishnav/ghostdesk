@@ -152,6 +152,26 @@ second, retries on 429/5xx, disk cache in `data/raw/` keyed by URL hash.
 `ExecutionEnv` (sell X shares over N steps, reward = minus implementation shortfall; `.reset`, `.step`),
 `run_schedule(env, holdings, seed)`.
 
+## ghostdesk/execution/replay.py — replay simulator on real minute bars (core)
+| Name | Contract |
+|---|---|
+| `ETA`, `BETA`, `GAMMA` | Almgren, Thum, Hauptmann and Li (2005): temporary 0.142, exponent 0.6, permanent 0.314. |
+| `Day` | One stock-day: arrival (first open), per-step price and volume, ADV and daily sigma from the 63 days before. |
+| `make_days(minutes, daily, steps=12, minutes_per_step=5)` | Minute bars → `Day` list; ADV and sigma use only earlier days. |
+| `shortfall_bps(day, trades, size, half_spread, eta)` | Implementation shortfall of a schedule (sum of `shortfall_part`). |
+| `shortfall_part(...)`, `impact_part(...)` | One step's cost with, and without, the market move since arrival. |
+| `schedule_trades(weights, size, day)`, `twap_weights(steps)`, `ac_weights(steps, kappa_T)` | Fixed schedules. |
+| `volume_profile(days)` | Expected volume share per step and symbol (from earlier days: VWAP). |
+| `ReplayEnv(days, profile, sizes, observe_price, half_spread, eta, seed, reward, scale)` | Gymnasium env; action = log multiplier of the TWAP pace (0 = TWAP); `reward="impact"` trains on the order's own cost; `.set_episode(day, size)`. |
+
+## ghostdesk/execution/capacity.py — capacity of the signal strategy (core)
+| Name | Contract |
+|---|---|
+| `monthly_trades(panel, measure, n=5)` | Weight changes per month and stock of the Q5-Q1 portfolio, with dollar ADV and sigma. |
+| `cost_fraction(x_dollar, adv_dollar, sigma, ...)` | One day's even trading cost: half-spread + permanent/2 + temporary. |
+| `capacity_curve(trades, aums)` | Mean monthly cost (fraction of the fund) per fund size. |
+| `break_even(curve, gross_monthly)` | Fund size where cost = gross return; NaN off the curve. |
+
 ## ghostdesk/execution/realism.py — realism checks (ready; Step 4b gate)
 `acf`, `hill`, `stylised_facts`, `window_stats`, `auc`, `discriminator_score(real, fake, folds, seed)`.
 

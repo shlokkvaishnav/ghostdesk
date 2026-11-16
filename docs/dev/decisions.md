@@ -92,3 +92,14 @@ the decision of an old entry — add a new entry that replaces it.
 - The proof is for the file as committed in `e4d66bb` (SHA-256 `b32c95a4…9a17`). The deviation log was added after
   the test, so verify that version: `git show e4d66bb:docs/preregistration.md > /tmp/p.md && ots verify -f /tmp/p.md
   docs/preregistration.md.ots`.
+
+### D14 — Execution study design; a validation split after an early look at 2024 (2026-11-16)
+- **Design (fixed before results):** replay of real first-hour minute bars (12 x 5 minutes), Almgren et al. (2005)
+  impact, sizes 0.1/1/5% of ADV, 10 large and 10 smaller stocks, train 2023, test 2024, paired differences
+  against the best fixed schedule with day-clustered intervals.
+- **Process error and fix:** the first PPO version was evaluated directly on 2024 (PPO worse than VWAP at all
+  sizes; kept in `data/execution_results_test_v1.json` and reported). Later design changes were chosen on a
+  validation split inside 2023 only; 2024 was then used once more for the final run (3 seeds).
+- **Changes from validation:** training reward = the order's own cost (`reward="impact"`; the market move is
+  noise of about 50 bps per hour against impact differences of about 1 bp), reward scaled by order size, and a
+  smaller initial exploration noise (log std -1). The action is a log multiplier of the TWAP pace.

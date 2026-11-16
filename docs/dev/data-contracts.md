@@ -128,6 +128,29 @@ sic, spread, signal_age`, then the ranked signals `sim_*_r, composite, composite
 Producer: `scripts/signal_study.py`. `period, formation, primary, prereg_commit, code_commit, panel` and, per signal,
 the `signal.study.summary` dictionary.
 
+### data/minutes.parquet
+Producer: `scripts/load_minutes.py`. Alpaca 1-minute bars (raw), 20 stocks, 2023-2024, minutes 0-59 after 09:30.
+Key: `(symbol, t)`.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `symbol` | str | |
+| `t` | timestamp UTC | Start of the minute. |
+| `o` | float | Open (the first minute's open is the arrival price). |
+| `h` | float | High. |
+| `l` | float | Low. |
+| `c` | float | Close. |
+| `v` | int | Volume (odd lots excluded, see data-quality P8). |
+| `n` | int | Trades. |
+| `vw` | float | Volume-weighted price. |
+| `minute` | int | Minutes after 09:30 New York (0-59). |
+| `day` | date | Session date. |
+| `group` | str | `large` or `small`. |
+
+### data/execution_results_<eval>_seed<n>.json, data/capacity.json
+Producers: `scripts/execution_study.py`, `scripts/capacity.py`. Mean costs (bps) per group, size and strategy;
+paired differences against the best fixed schedule with day-clustered 95% intervals; cost curve and break-even.
+
 ### Summary files
 `universe_coverage.json`, `filings_index_summary.json`, `features_summary.json`, `prices_coverage.json`: counts
 written by the producers; [docs/data.md](../data.md) quotes them.

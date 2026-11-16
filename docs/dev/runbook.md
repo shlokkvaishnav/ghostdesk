@@ -74,6 +74,9 @@ PYTHONPATH=src .venv/bin/python -u scripts/signal_study.py --period test --prere
   commit that last changed it. **Do not run them** unless the owner asks; read
   [preregistration.md](../preregistration.md) first.
 
+### Pitfall-bias table — `scripts/pitfalls.py`
+Reruns the study on 2016-2021 with one guard off at a time; refuses dates in the test period. About 1 min.
+
 ## 6. Checks before a commit
 ```bash
 make check     # ruff + pytest + mkdocs build --strict

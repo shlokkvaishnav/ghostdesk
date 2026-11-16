@@ -20,21 +20,25 @@ Updated 2026-11-16. Steps follow [docs/plan.md](../plan.md).
 | Outside review of the research value | done (2026-11-16); accepted changes are in decisions D9-D10 |
 | Pre-registration `docs/preregistration.md` | written; committed before any 2020-2025 return was computed |
 | Check period 2020-2021 | done (after the pre-registration commit `e4d66bb`): `composite` long-short -0.35%/month (t -0.65, 95% CI [-1.40%, 0.70%]); IC 0.012 (t 0.66); Fama-MacBeth t 1.41. Uninformative (high 2020 volatility). Build IC by year falls from 0.038 (2016) to -0.008 (2019). |
-| Test period 2022-2025 | **wait**: run once, only after the owner decides on the open questions below |
+| Test period 2022-2025 | run once with `--prereg e4d66bb` (owner's go-ahead, 2026-11-16) |
 
-## Open questions for the owner (they can change the pre-registration)
-1. **Pre-publication comparison.** The review's top suggestion: run the same pipeline on 2010-2015 (before the
-   paper) to measure decay after publication. Needs a second price source for 2010-2015 (reverses D3).
-2. **Role of the RL execution study.** The review: in a square-root-impact simulator with no predictive state,
-   Almgren-Chriss is near-optimal, so PPO can at best match it. Proposed: present it as a short sanity check, and
-   use the impact model for a capacity analysis (break-even assets under management) instead.
-3. **External timestamp of the pre-registration** (OSF or AsPredicted needs an account; OpenTimestamps needs none
-   and publishes only a hash).
+## Decisions on the review (owner: "do what is better")
+- Pre-2016 comparison: not with free data (D11). RL study reframed (D12). External timestamp done (D13).
 
-## Next after the test
-- **Step 3b — pitfall-bias table** (review's second suggestion): rerun the study with one guard off at a time
-  (filing date instead of acceptance time; ticker instead of CIK; today's constituents; companyfacts-style latest
-  values; vendor spin-off days kept) and report how much each moves the IC and the Sharpe ratio.
+## Pitfall-bias table (2016-2021 only; `scripts/pitfalls.py`, `data/pitfalls.json`)
+Primary signal, equal-weighted long-short, gross. Each row turns one guard off.
+
+| Variant | Long-short %/month | t | IC | Change vs baseline (pp) | Stock-months |
+|---|---|---|---|---|---|
+| baseline | 0.19 | 0.79 | 0.017 | +0.00 | 34,522 |
+| filing_date | 0.20 | 0.85 | 0.017 | +0.01 | 34,541 |
+| period_end | 0.21 | 0.91 | 0.018 | +0.02 | 34,730 |
+| survivors | 0.06 | 0.25 | 0.012 | -0.13 | 26,482 |
+| vendor_errors | 0.21 | 0.86 | 0.017 | +0.02 | 34,522 |
+| mixed_forms | 0.27 | 1.27 | 0.017 | +0.08 | 34,522 |
+
+Reading: for this slow signal, timing look-ahead changes little (even a report "known" at its period end); the stock
+list (survivorship) and mixing 10-K with 10-Q ranks change the most.
 
 ## Later
 - Step 4 — execution study: calibrate `execution/impact.py` per stock (daily volatility and volume from

@@ -67,3 +67,25 @@ the decision of an old entry — add a new entry that replaces it.
   estimate. Signal window 120 days, with `signal_age` recorded. Dollar-volume-weighted returns as a check.
 - **Rejected for now:** the review's other changes (pre-2016 comparison, LLM measures, demoting the RL study,
   external timestamp) need the owner's decision; they are listed in status.md.
+
+### D11 — No pre-2016 comparison with free data (2026-11-16)
+- **Context:** the outside review's first suggestion was a pre-publication period (2010-2015) to measure decay.
+- **Check:** the only large free source (Kaggle "Huge Stock Market Dataset") is a 2017 snapshot. It has no company
+  that stopped trading before late 2017: 10.0% of 2010-2015 member-days, exactly the bought and failed companies.
+- **Decision:** not used; a biased pre-period would carry the bias that this project exists to remove. Decay is
+  addressed by the trend inside 2016-2025 and a comparison with the published estimates; a clean pre-2016 test
+  needs CRSP (future work).
+
+### D12 — The RL execution study is a test of what PPO learns, not a claim that it wins (2026-11-16)
+- **Context:** in a square-root-impact simulator whose prices are a martingale, Almgren-Chriss is near-optimal, so
+  PPO can at best match it (outside review).
+- **Decision:** keep the study (an agent that learns to trade is a goal of the project), but give the simulator real
+  intraday volume and spread profiles from minute bars and ask: does PPO learn them, and match the best fixed
+  schedules (VWAP, Almgren-Chriss) at each order size? Add a capacity analysis: the assets under management at which
+  the impact cost of the signal's turnover equals its gross return.
+- **Rejected:** a headline of "RL beats Almgren-Chriss" (not true in this model).
+
+### D13 — Pre-registration timestamped outside git (2026-11-16)
+- **Decision:** OpenTimestamps proof `docs/preregistration.md.ots` (only the SHA-256 hash leaves the machine; no
+  account), in addition to the GitHub push time of commit `e4d66bb`. Verify with `ots verify
+  docs/preregistration.md.ots` after the Bitcoin confirmation (`ots upgrade` completes the proof).

@@ -12,7 +12,7 @@ import re
 
 import lxml.html
 
-from ..filings.chunking import split_sections
+from ..filings.sections import split_sections
 from .similarity import MEASURES, words
 
 SECTIONS = {"10-K": {"risk": "item_1a", "mdna": "item_7"}, "10-Q": {"risk": "item_1a", "mdna": "item_2"}}

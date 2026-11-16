@@ -1,0 +1,54 @@
+# Decision log
+
+One entry per choice between real alternatives. Format: context, decision, consequences. Newest last; never edit
+the decision of an old entry — add a new entry that replaces it.
+
+### D1 — One project, three parts (2026-11-15)
+- **Context:** three separate repos (filings Q&A, execution RL, Bitcoin options) did not form a whole; an outside
+  quant review found that a slow filing signal and minute-level RL do not combine into P&L at a small order size.
+- **Decision:** one US-stocks project. The filing signal is the research result; RL execution is a separate study
+  of cost against order size; live paper trading is the engineering result. Static GitHub Pages only, no servers.
+- **Consequences:** the old repos were deleted; the tested parts were copied in. The Q&A code (claim verifier,
+  retrieval chunks) was removed on 2026-11-16 because the plan does not use it.
+
+### D2 — Learned world model only behind gates (2026-11-15)
+- **Decision:** a learned market simulator is tried only after Step 4, and kept only if it passes three gates
+  written before the try: realistic (stylised-fact ratios in [2/3, 3/2], discriminator AUC < 0.80 on held-out
+  days), useful (PPO trained with it beats PPO without it on real held-out days, 95% interval below 0), and cheap.
+- **Consequences:** `execution/realism.py` is kept for the gate; the old Bitcoin world model was removed (in git
+  history).
+
+### D3 — Study period 2016-2025 (2026-11-16, owner's choice)
+- **Context:** Alpaca's free history starts in 2016; reports start in 2009.
+- **Alternatives:** (a) build on 2016-2019 with one price source; (b) add a second free daily source for 2010-2015
+  (needs delisted companies, and a join at 2016).
+- **Decision:** (a). Build 2016-2019, check 2020-2021, test 2022-2025 once.
+- **Consequences:** 4 build years, not 10, so build-period estimates are less certain. Reports of 2010-2015 are
+  kept as the earlier report of the first pairs.
+
+### D4 — Point-in-time anchor is the SEC acceptance time (2026-11-15)
+- **Decision:** a report is tradeable at the first NYSE open strictly after `acceptanceDateTime` (verified to be
+  UTC against the EDGAR index header). Numbers come from each report's own XBRL, first reported value only.
+- **Rejected:** filing date (one day too coarse; after-hours reports), companyfacts API (holds restated values).
+
+### D5 — Universe identity by CIK with evidence, never guessed (2026-11-16)
+- **Decision:** each membership interval is mapped to a CIK only with evidence (filing check, names with dates,
+  "Date added", SEC name changes). Ambiguous intervals stay unmapped and are counted.
+- **Consequences:** 96.8% of 2010-2025 member-days mapped; the 3.2% lost is concentrated in 2010-2015 and is
+  not random (bought or failed companies). Results are reported by year.
+
+### D6 — Long SEC jobs on GitHub Actions, not the owner's Mac (2026-11-16)
+- **Alternatives:** local run (about 4 h, not allowed), Kaggle CPU (secret set in its UI), GitHub Actions.
+- **Decision:** GitHub Actions, 6 shards sharing 7.8 requests/s, manual start, inputs from a private release,
+  outputs as private artifacts, no failing steps.
+- **Consequences:** about 1,300 of the 2,000 free private minutes per month per full run.
+
+### D7 — Text measures: CMN baselines first; sentence-then-word edit similarity (2026-11-16)
+- **Decision:** cosine, Jaccard and edit similarity on the full text (primary) and on risk factors and MD&A
+  (secondary). The edit measure aligns sentences, then words inside changed blocks, because a word-level diff of
+  two 50,000-word reports is too slow. Embedding similarity is a later variant only.
+
+### D8 — Prices follow the company; vendor errors are removed, not repaired (2026-11-16)
+- **Decision:** prices by the company's current symbol (Alpaca stores history under it); intervals without a
+  confirmed CIK get no prices. Spin-off days that the vendor adjusts as splits get a NaN return.
+- **Rejected:** repairing those days from corporate-action data (more sources, few days: 8 in 10 years).

@@ -1,4 +1,4 @@
-"""PPO written from scratch (Schulman et al. 2017), with the settings of reports/spec_01.md.
+"""PPO written from scratch (Schulman et al. 2017), checked against stable-baselines3 in tests/test_ppo.py.
 
 One environment, rollouts of `n_steps`, GAE, clipped surrogate, separate actor and critic MLPs (64-64 tanh),
 advantages normalised per minibatch, gradient clipping. Discrete actions: categorical policy. Box actions: Gaussian

@@ -14,3 +14,12 @@ nav:
   - Overview: index.md
   - Plan: plan.md
   - Data: data.md
+  - Development:
+      - Status: dev/status.md
+      - Architecture: dev/architecture.md
+      - Modules: dev/modules.md
+      - Data contracts: dev/data-contracts.md
+      - Runbook: dev/runbook.md
+      - Data quality: dev/data-quality.md
+      - Decisions: dev/decisions.md
+      - Conventions: dev/conventions.md

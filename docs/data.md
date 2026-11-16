@@ -158,7 +158,7 @@ text (`ghostdesk.signal.features`):
 - 44 reports (0.14%) failed, mostly with network errors. They have no measures.
 - XBRL values are present for 81% of the reports filed in 2010 and for 98.6% of the later reports.
 - Revenue is often missing because banks and some other companies use other XBRL item names. The size control
-  uses market value from prices, so this does not affect it.
+  does not use revenue (it uses dollar volume from prices and total assets), so this does not affect it.
 - The cosine measure is almost always 0.99 or more, so it separates reports badly (as in the paper). The edit
   measure (median 0.68) and Jaccard (median 0.82) vary much more.
 

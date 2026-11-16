@@ -12,7 +12,7 @@ Updated 2026-11-16. Steps follow [docs/plan.md](../plan.md).
 | 2d. Prices and returns | 98.0% of 2016-2025 member-days with a bar; 8 vendor-error days removed | `prices_coverage.json` |
 | 2e. Spread estimate | Corwin-Schultz, ±0.1 pp in simulation | `tests/test_spread_similarity.py` |
 
-## Step 3 — the signal study (in progress)
+## Step 3 — the signal study (done)
 | Item | State |
 |---|---|
 | Panel builder `signal/panel.py`, statistics `signal/study.py` | done, tested |
@@ -20,7 +20,7 @@ Updated 2026-11-16. Steps follow [docs/plan.md](../plan.md).
 | Outside review of the research value | done (2026-11-16); accepted changes are in decisions D9-D10 |
 | Pre-registration `docs/preregistration.md` | written; committed before any 2020-2025 return was computed |
 | Check period 2020-2021 | done (after the pre-registration commit `e4d66bb`): `composite` long-short -0.35%/month (t -0.65, 95% CI [-1.40%, 0.70%]); IC 0.012 (t 0.66); Fama-MacBeth t 1.41. Uninformative (high 2020 volatility). Build IC by year falls from 0.038 (2016) to -0.008 (2019). |
-| Test period 2022-2025 | run once with `--prereg e4d66bb` (owner's go-ahead, 2026-11-16) |
+| Test period 2022-2025 | **done once** (code `cce3d21`): H1 +0.09%/month after 5 bps (t 0.40, 95% CI [-0.36%, +0.54%]); not detected. See [results](../results.md). |
 
 ## Decisions on the review (owner: "do what is better")
 - Pre-2016 comparison: not with free data (D11). RL study reframed (D12). External timestamp done (D13).

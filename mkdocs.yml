@@ -15,6 +15,7 @@ nav:
   - Plan: plan.md
   - Data: data.md
   - Pre-registration: preregistration.md
+  - Results: results.md
   - Development:
       - Status: dev/status.md
       - Architecture: dev/architecture.md

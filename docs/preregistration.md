@@ -87,4 +87,4 @@ The test command runs once. Its output (`data/results_test.json`) is published a
 ## Deviation log
 | Date | Change | Reason |
 |---|---|---|
-| — | — | — |
+| 2026-11-16 (after the test) | Wording only, in the reading of results: section 7 calls the build-period estimate the "pre-publication size"; 2016-2019 is before the journal publication (2020) but after the working paper. The results page calls it the build-period estimate. No test or rule changed. | precision |

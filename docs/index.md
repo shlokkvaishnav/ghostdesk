@@ -18,9 +18,13 @@ A quant trading desk does three jobs. Ghostdesk will do all three by itself:
 - **Data: done.** The S&P 500 as it was on each date (with the companies that left it), 47,719 reports with the
   exact time the SEC accepted each one, text-change scores for 30,514 report pairs, and clean daily prices for
   2016-2025. How each problem in the data was found and fixed: [data quality](dev/data-quality.md).
-- **Next: the signal study.** Build on 2016-2019, check on 2020-2021, and test once on 2022-2025, after the test
-  rules are written down.
-- **Later:** the execution study, the live job and the web page.
+- **Signal study: done.** In the pre-registered test (2022-2025), the effect was **not detected**: +0.09% per month
+  after costs, 95% interval −0.36% to +0.54%. Over 2016-2025 the upper limit is about 0.5% per month. Details:
+  [results](results.md).
+- **Backtest mistakes, measured:** for this signal, timing look-ahead changes little; the stock list and mixing
+  annual with quarterly reports change the most.
+- **Next:** the execution study (does an RL agent learn real intraday patterns, and how much money can the strategy
+  trade), then the live job and the web page.
 
 ## Run it
 ```bash

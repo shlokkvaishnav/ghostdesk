@@ -89,3 +89,6 @@ the decision of an old entry — add a new entry that replaces it.
 - **Decision:** OpenTimestamps proof `docs/preregistration.md.ots` (only the SHA-256 hash leaves the machine; no
   account), in addition to the GitHub push time of commit `e4d66bb`. Verify with `ots verify
   docs/preregistration.md.ots` after the Bitcoin confirmation (`ots upgrade` completes the proof).
+- The proof is for the file as committed in `e4d66bb` (SHA-256 `b32c95a4…9a17`). The deviation log was added after
+  the test, so verify that version: `git show e4d66bb:docs/preregistration.md > /tmp/p.md && ots verify -f /tmp/p.md
+  docs/preregistration.md.ots`.

@@ -123,7 +123,9 @@ def fama_macbeth(panel: pd.DataFrame, measure: str, lags: int = 3) -> dict:
     """Monthly cross-section OLS: next-month return on the signal's rank (0-1), standardised size (log dollar
     volume, log assets) and momentum, and industry dummies; the mean signal coefficient and its NW t."""
     coefs = {}
-    for month, g in panel.dropna(subset=[measure, "fwd_ret", "mom", "logdv", "log_assets"]).groupby("month"):
+    cols = [measure, "fwd_ret", "mom", "logdv", "log_assets"]
+    ok = np.isfinite(panel[cols].astype(float)).all(axis=1)
+    for month, g in panel[ok].groupby("month"):
         if len(g) < 50:
             continue
         x = pd.DataFrame({"signal": g[measure].rank(pct=True)})

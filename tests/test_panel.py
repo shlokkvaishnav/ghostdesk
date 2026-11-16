@@ -44,7 +44,7 @@ def panel():
     returns = pd.concat([daily("AAA"), daily("BBB", flag_day="2020-01-15"), daily("GOOG"), daily("GOOGL"),
                          daily("NEW"), daily("OUT")])
     raw = pd.concat([raw_bars(s, v) for s, v in
-                     [("AAA", 1000), ("BBB", 1000), ("GOOG", 10), ("GOOGL", 5000), ("NEW", 1000), ("OUT", 1000)]])
+                     [("AAA", 1000), ("BBB", 0), ("GOOG", 10), ("GOOGL", 5000), ("NEW", 1000), ("OUT", 1000)]])
     feats = pd.DataFrame([
         feature(1, "2019-12-31T21:30:00", 0.9),  # 16:30 New York on the month-end: after the close -> not for Dec
         feature(1, "2019-12-20T12:00:00", 0.5),  # tradeable 2019-12-20 09:30 -> the Dec signal
@@ -75,6 +75,7 @@ def test_flagged_day_counts_as_zero_and_momentum_age(panel):
     assert abs(dec.loc["AAA", "fwd_ret"] - np.expm1(0.001 * n)) < 1e-12
     assert abs(dec.loc["BBB", "fwd_ret"] - np.expm1(0.001 * (n - 1))) < 1e-12  # 2020-01-15 flagged -> 0
     assert np.isnan(dec.loc["NEW", "mom"]) and not np.isnan(dec.loc["AAA", "mom"])
+    assert np.isnan(dec.loc["BBB", "logdv"])  # zero volume: NaN, not -inf
 
 
 def test_month_ends():

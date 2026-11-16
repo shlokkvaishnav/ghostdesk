@@ -29,6 +29,15 @@ from ..data.spread import corwin_schultz
 MEASURES = [f"sim_{p}_{m}" for p in ("full", "risk", "mdna") for m in ("cosine", "jaccard", "edit")]
 
 
+def _log(x) -> np.ndarray:
+    """log for positive values, NaN otherwise (a zero dollar volume or a zero/negative reported value)."""
+    x = np.asarray(x, dtype=float)
+    out = np.full(x.shape, np.nan)
+    ok = np.isfinite(x) & (x > 0)
+    out[ok] = np.log(x[ok])
+    return out
+
+
 def month_ends(sessions: pd.DatetimeIndex) -> pd.DatetimeIndex:
     """The last session of each month."""
     s = pd.Series(sessions, index=sessions)
@@ -95,7 +104,7 @@ def build_panel(features: pd.DataFrame, members: pd.DataFrame, returns: pd.DataF
         m = m[m["price_symbol"].isin(r.columns)]
         if m.empty:
             continue
-        m["logdv"] = np.log(dv63.loc[d].reindex(m["price_symbol"]).to_numpy())
+        m["logdv"] = _log(dv63.loc[d].reindex(m["price_symbol"]).to_numpy())
         m = m.sort_values("logdv", ascending=False).drop_duplicates("cik")
         i0, i1 = pos[d], pos[d_next]
         sym = m["price_symbol"]
@@ -113,7 +122,7 @@ def build_panel(features: pd.DataFrame, members: pd.DataFrame, returns: pd.DataF
         last = last.drop_duplicates("cik", keep="last")
         m = m.merge(last[["cik", "accession", "form", "tradeable", *MEASURES]], on="cik", how="left")
         a_ = assets[assets["accepted_utc"] < t_close].drop_duplicates("cik", keep="last")
-        m["log_assets"] = np.log(m["cik"].map(a_.set_index("cik")["xbrl_Assets"]).astype(float))
+        m["log_assets"] = _log(m["cik"].map(a_.set_index("cik")["xbrl_Assets"]).astype(float).to_numpy())
         m["sic"] = m["cik"].map(lambda c: sic.get(int(c), ""))
         per = d.to_period("M")
         m["spread"] = [spread.get((s, per), np.nan) for s in m["price_symbol"]]

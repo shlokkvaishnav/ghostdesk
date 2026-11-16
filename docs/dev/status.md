@@ -19,7 +19,7 @@ Updated 2026-11-16. Steps follow [docs/plan.md](../plan.md).
 | Build period 2016-2019 | done: `composite` long-short 0.46%/month gross (t 2.22), 0.43% net of 5 bps (t 2.06); industry-neutral t 1.36; Fama-MacBeth t 0.16 |
 | Outside review of the research value | done (2026-11-16); accepted changes are in decisions D9-D10 |
 | Pre-registration `docs/preregistration.md` | written; committed before any 2020-2025 return was computed |
-| Check period 2020-2021 | next (allowed: it is in the pre-registration as a reported, non-confirmatory result) |
+| Check period 2020-2021 | done (after the pre-registration commit `e4d66bb`): `composite` long-short -0.35%/month (t -0.65, 95% CI [-1.40%, 0.70%]); IC 0.012 (t 0.66); Fama-MacBeth t 1.41. Uninformative (high 2020 volatility). Build IC by year falls from 0.038 (2016) to -0.008 (2019). |
 | Test period 2022-2025 | **wait**: run once, only after the owner decides on the open questions below |
 
 ## Open questions for the owner (they can change the pre-registration)

@@ -145,6 +145,23 @@ text (`ghostdesk.signal.features`):
 - **Numbers:** revenue, net income, assets and equity from the report's own XBRL instance (own period only, no
   segments). For each period the first reported value is kept, so a later restatement never replaces it.
 
+**Result** (`features` workflow, 16 November 2026: 6 parts, about 3-4 hours each):
+
+| | 10-K | 10-Q |
+|---|---|---|
+| Reports (all paired reports filed while the company was in the index, 2009-2025) | 30,514 in total, from 765 companies | |
+| Full-text measures | 100% | 100% |
+| Risk-factor measures | 95.4% | 18.0% (most 10-Qs only say "no material changes") |
+| MD&A measures | 88.4% | 94.7% |
+| XBRL assets / equity / net income / revenue | 96.6% / 88.9% / 85.6% / 84.8% | 97.9% / 89.9% / 86.8% / 85.2% |
+
+- 44 reports (0.14%) failed, mostly with network errors. They have no measures.
+- XBRL values are present for 81% of the reports filed in 2010 and for 98.6% of the later reports.
+- Revenue is often missing because banks and some other companies use other XBRL item names. The size control
+  uses market value from prices, so this does not affect it.
+- The cosine measure is almost always 0.99 or more, so it separates reports badly (as in the paper). The edit
+  measure (median 0.68) and Jaccard (median 0.82) vary much more.
+
 **Limits:**
 - Some large companies (for example JPMorgan, Exxon Mobil) put MD&A in the annual report to shareholders
   (Exhibit 13), not in the main 10-K document. Their MD&A part is NaN, and their full text is shorter. The main

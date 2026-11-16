@@ -12,12 +12,13 @@ SITE           a static page, rebuilt each day: new reports and scores, position
 ## Steps
 1. **Data, with no hindsight.**
    - Stocks: the S&P 500 as it was on each date since 2010, including companies that later left it.
-   - Reports: 10-K and 10-Q text from SEC EDGAR, with the exact time the SEC accepted each report. A report accepted
-     after 16:00 New York time counts on the next trading day.
+   - Reports: 10-K and 10-Q text from SEC EDGAR, with the exact time the SEC accepted each report. A report is
+     used at the first market open after that time (a report accepted after the open counts on the next day).
    - Numbers: from each report's own XBRL file, never from later corrected values.
-   - Prices: daily and minute bars from Alpaca.
-   - Split by time: build 2010-2019, check 2020-2021, final test 2022-2025 (used once). Live trading is the
-     forward test.
+   - Prices: daily and minute bars from Alpaca. Its free history starts in 2016, so the study starts in 2016.
+     One price source with full market volume is safer than two sources joined in 2016.
+   - Split by time: build 2016-2019, check 2020-2021, final test 2022-2025 (used once). Live trading is the
+     forward test. The 2010-2015 reports are kept: they are the "earlier report" of the first 2016 pairs.
 2. **The signal study.** Text-change measures from the original paper first (word-count cosine, Jaccard, edit
    distance); a neural-embedding measure as a variant. Controls for momentum, size and sector. Results: information
    coefficient by year, quintile returns, long-short return after costs, turnover, and a Fama-French alpha with its

@@ -12,31 +12,29 @@ Updated 2026-11-16. Steps follow [docs/plan.md](../plan.md).
 | 2d. Prices and returns | 98.0% of 2016-2025 member-days with a bar; 8 vendor-error days removed | `prices_coverage.json` |
 | 2e. Spread estimate | Corwin-Schultz, ±0.1 pp in simulation | `tests/test_spread_similarity.py` |
 
-## Next: Step 3 — the signal study
-Work in this order. Each item lists what "done" means.
+## Step 3 — the signal study (in progress)
+| Item | State |
+|---|---|
+| Panel builder `signal/panel.py`, statistics `signal/study.py` | done, tested |
+| Build period 2016-2019 | done: `composite` long-short 0.46%/month gross (t 2.22), 0.43% net of 5 bps (t 2.06); industry-neutral t 1.36; Fama-MacBeth t 0.16 |
+| Outside review of the research value | done (2026-11-16); accepted changes are in decisions D9-D10 |
+| Pre-registration `docs/preregistration.md` | written; committed before any 2020-2025 return was computed |
+| Check period 2020-2021 | next (allowed: it is in the pre-registration as a reported, non-confirmatory result) |
+| Test period 2022-2025 | **wait**: run once, only after the owner decides on the open questions below |
 
-1. **Pre-registration** — `docs/preregistration.md`, committed **before** any 2022-2025 return is read.
-   - Fixed: universe rule, signal (primary: `sim_full_edit`, lower = more change; secondary: Jaccard, cosine, and the
-     risk and MD&A parts), event time (`first_open_after`), holding period (primary: 3 months), portfolio
-     (quintiles, equal weight, monthly rebalance), costs (Corwin-Schultz half-spread per trade, plus 5 bps), controls
-     (size = log 63-day average dollar volume and log total assets; 12-1 month momentum; GICS sector from the current
-     constituents table, a stated limit for removed companies), tests and the
-     significance level, and the exact command that will produce the test result.
-   - Done when: the file is committed and its commit hash is quoted in the results.
-2. **Panel builder** — `src/ghostdesk/signal/panel.py`.
-   - One row per (stock, month-end): latest signal known before the month-end (by tradeable time), member on that
-     date, return over the next month (members on both days, flagged days excluded).
-   - Tests: a report accepted after the month-end is not used; a non-member is not in the panel; a flagged day
-     does not enter a return; EVHC-type first-day returns are excluded (data-quality P5).
-   - Done when: tests pass and the panel's coverage is in `docs/data.md`.
-3. **Backtest on 2016-2019 only** — `scripts/signal_study.py --period build`.
-   - Outputs (JSON + charts): IC by year, quintile spreads, long-short return before and after costs, turnover,
-     break-even cost, Fama-French 5-factor + momentum alpha with Newey-West t-statistic.
-   - Fama-French factors: Kenneth French data library (monthly), cached in `data/sources/`.
-   - Done when: the script runs from the cached data in under 10 minutes and writes `data/results_build.json`.
-4. **Check period 2020-2021**, same script, `--period check`. Choices may change only on build data.
-5. **Test period 2022-2025**, once, with the pre-registered command. Report the result as it is (a null result is a
-   valid result).
+## Open questions for the owner (they can change the pre-registration)
+1. **Pre-publication comparison.** The review's top suggestion: run the same pipeline on 2010-2015 (before the
+   paper) to measure decay after publication. Needs a second price source for 2010-2015 (reverses D3).
+2. **Role of the RL execution study.** The review: in a square-root-impact simulator with no predictive state,
+   Almgren-Chriss is near-optimal, so PPO can at best match it. Proposed: present it as a short sanity check, and
+   use the impact model for a capacity analysis (break-even assets under management) instead.
+3. **External timestamp of the pre-registration** (OSF or AsPredicted needs an account; OpenTimestamps needs none
+   and publishes only a hash).
+
+## Next after the test
+- **Step 3b — pitfall-bias table** (review's second suggestion): rerun the study with one guard off at a time
+  (filing date instead of acceptance time; ticker instead of CIK; today's constituents; companyfacts-style latest
+  values; vendor spin-off days kept) and report how much each moves the IC and the Sharpe ratio.
 
 ## Later
 - Step 4 — execution study: calibrate `execution/impact.py` per stock (daily volatility and volume from

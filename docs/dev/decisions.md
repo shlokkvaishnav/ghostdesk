@@ -52,3 +52,18 @@ the decision of an old entry — add a new entry that replaces it.
 - **Decision:** prices by the company's current symbol (Alpaca stores history under it); intervals without a
   confirmed CIK get no prices. Spin-off days that the vendor adjusts as splits get a NaN return.
 - **Rejected:** repairing those days from corporate-action data (more sources, few days: 8 in 10 years).
+
+### D9 — Signal ranked within form; composite of three measures (2026-11-16)
+- **Context:** in 2016-2019, raw similarity ranks mixed forms (the most-changed quintile was 11% 10-Ks, the least
+  changed 37%), because a 10-Q changes more from year to year than a 10-K. An outside review found the same risk.
+- **Decision:** each measure is ranked within (month, form); the primary signal is the mean of the three full-text
+  ranks. No single measure is chosen on the data (cosine was the strongest in the build period).
+- **Consequences:** fixed in `docs/preregistration.md`.
+
+### D10 — Costs on a fixed grid; window 120 days (2026-11-16)
+- **Context:** the outside review: Corwin-Schultz is too noisy at large-cap spreads; a 92-day signal window misses
+  the gap between a Q3 10-Q and the next 10-K.
+- **Decision:** net returns at 2, 5 (primary) and 10 bps per unit of weight traded; Corwin-Schultz as a secondary
+  estimate. Signal window 120 days, with `signal_age` recorded. Dollar-volume-weighted returns as a check.
+- **Rejected for now:** the review's other changes (pre-2016 comparison, LLM measures, demoting the RL study,
+  external timestamp) need the owner's decision; they are listed in status.md.

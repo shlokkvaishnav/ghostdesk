@@ -119,6 +119,15 @@ Producer: `scripts/load_prices.py` (`data.returns.daily_returns`). Key: `(symbol
 
 Use rule: a return counts only if the stock is a member (with a confirmed CIK) on both days.
 
+### data/panel_<period>.parquet
+Producer: `scripts/signal_study.py`. One row per (formation month-end, CIK). Columns: `month, cik, ticker,
+price_symbol, accession, form, tradeable`, the nine `sim_*` measures, `fwd_ret, fwd_days, mom, logdv, log_assets,
+sic, spread, signal_age`, then the ranked signals `sim_*_r, composite, composite_ind`. Key: `(month, cik)`.
+
+### data/results_<period>.json
+Producer: `scripts/signal_study.py`. `period, formation, primary, prereg_commit, code_commit, panel` and, per signal,
+the `signal.study.summary` dictionary.
+
 ### Summary files
 `universe_coverage.json`, `filings_index_summary.json`, `features_summary.json`, `prices_coverage.json`: counts
 written by the producers; [docs/data.md](../data.md) quotes them.

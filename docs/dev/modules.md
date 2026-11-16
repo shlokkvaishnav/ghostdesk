@@ -85,6 +85,21 @@ second, retries on 429/5xx, disk cache in `data/raw/` keyed by URL hash.
 | `corwin_schultz(high, low, close=None, floor=True) -> Series` | Two-day estimates; overnight gap removed when `close` is given; `floor=False` keeps negatives. |
 | `monthly_spread(high, low, close, dates) -> Series` | Monthly mean of unfloored estimates, then floored at 0 (unbiased within ±0.1 pp in tests). |
 
+## ghostdesk/data/factors.py — factor returns (core)
+| Name | Contract |
+|---|---|
+| `MONTH_ROW` | Pattern of a monthly row (`YYYYMM,`) in a French-library CSV. |
+| `read_french(path) -> DataFrame` | One CSV zip → monthly table (month-end index), decimals; the annual table is skipped. |
+| `load_factors(folder) -> DataFrame` | `Mkt-RF, SMB, HML, RMW, CMA, RF, Mom` from `data/sources/ff/`. |
+
+## ghostdesk/data/industry.py — industry from SIC (core)
+| Name | Contract |
+|---|---|
+| `DIVISIONS` | The standard SIC divisions A-J by 2-digit range. |
+| `major_group(sic) -> str` | 2-digit SIC major group (`100` → `01`), or `unknown`. |
+| `sic_division(sic) -> str` | The division name, or `unknown`. |
+| `industry_groups(sic, min_size=10) -> Series` | Per month: the major group if it has ≥ `min_size` stocks, else the division (Fama-MacBeth dummies). |
+
 ## ghostdesk/signal/similarity.py — change measures (core)
 | Name | Contract |
 |---|---|
@@ -99,6 +114,30 @@ second, retries on 429/5xx, disk cache in `data/raw/` keyed by URL hash.
 | `prose(html) -> str` | lxml text; number tables removed, layout tables kept; new lines only at block elements; source wraps removed. |
 | `parts(html, form) -> dict` | `full`, plus `risk` (Item 1A) and `mdna` (10-K Item 7, 10-Q Item 2) if ≥ 200 words; headings ≤ 160 characters. |
 | `pair_features(cur, prev) -> dict` | `sim_<part>_<measure>`, `words_<part>`, `words_<part>_prev`; NaN when a part is missing in either report. |
+
+## ghostdesk/signal/panel.py — stock-month panel (core)
+| Name | Contract |
+|---|---|
+| `MEASURES` | The nine `sim_<part>_<measure>` columns. |
+| `month_ends(sessions)` | Last session of each month. |
+| `tradeable_times(accepted_utc, sessions)` | First open strictly after each acceptance time (vectorised `first_open_after`). |
+| `close_utc(days)` | 16:00 New York of each day, in UTC. |
+| `build_panel(features, members, returns, raw, sic, start, end, window_days=120)` | One row per (month-end, CIK): the signal tradeable at the close (≤ 120 days old), next-month return (missing or flagged days = 0), momentum only over the current interval, log dollar volume, log assets as of formation, SIC, Corwin-Schultz spread, `signal_age`. |
+
+## ghostdesk/signal/study.py — statistics (core)
+| Name | Contract |
+|---|---|
+| `FACTORS`, `FULL`, `PRIMARY`, `NEUTRAL` | FF5 + Mom names; the three full-text measures; `composite`; `composite_ind`. |
+| `add_signals(panel)` | `<measure>_r` ranks within (month, form); `composite` and `composite_ind` (see the pre-registration). |
+| `newey_west(y, x, lags)` | OLS coefficients and Bartlett HAC standard errors (pseudo-inverse). |
+| `mean_t(series, lags) -> dict` | `mean`, NW `t`, `n`, `ci95`. |
+| `quintiles(panel, measure, n=5)` | Rows with a signal and a return, with `q` (n = most similar) per month. |
+| `COST_BPS` | The fixed cost grid (2, 5, 10 bps per unit of weight traded). |
+| `portfolio(panel, measure, weighting="equal", n=5) -> dict` | Quintile returns, long-short, weight `traded` per month, nets on the grid, Corwin-Schultz net; `weighting="dv"` for dollar-volume weights. |
+| `ic(panel, measure)` | Monthly Spearman IC. |
+| `fama_macbeth(panel, measure, lags=3)` | Signal rank + standardised controls + industry dummies; mean coefficients with NW t. |
+| `alpha(ls, factors, lags=3)` | FF5 + Mom alpha of a zero-cost return (formation month m earns in m + 1). |
+| `summary(panel, measure, factors, lags=3) -> dict` | All of the above, plus Sharpe, minimum detectable effect, break-even bps, signal age. |
 
 ## ghostdesk/execution/benchmarks.py — schedules (ready)
 `ACParams` (Almgren-Chriss parameters; `.tau`, `.eta_tilde`), `twap(X, N)`, `vwap(X, volume_profile)`,

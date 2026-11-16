@@ -60,7 +60,21 @@ make prices
 - Time: about 5 min (14 requests of 100 symbols, plus single requests for dropped symbols).
 - Check: coverage 0.980 of 2016-2025 member-days, 8 flagged days (2026-11-16).
 
-## 5. Checks before a commit
+## 5. Signal study — `scripts/signal_study.py`
+Needs the Fama-French files in `data/sources/ff/`. The French library answers 404 to the owner's network, so the
+`sources` workflow fetches them: `gh workflow run sources.yml`, then
+`gh run download <id> -n sources --dir data/sources/ff`.
+```bash
+PYTHONPATH=src .venv/bin/python -u scripts/signal_study.py --period build    # 2016-2019, about 10 s
+PYTHONPATH=src .venv/bin/python -u scripts/signal_study.py --period check    # 2020-2021
+PYTHONPATH=src .venv/bin/python -u scripts/signal_study.py --period test --prereg <commit>    # once
+```
+- Output: `data/panel_<period>.parquet`, `data/results_<period>.json`.
+- `test` and `pooled` refuse to run unless `docs/preregistration.md` is committed, unchanged, and `--prereg` is the
+  commit that last changed it. **Do not run them** unless the owner asks; read
+  [preregistration.md](../preregistration.md) first.
+
+## 6. Checks before a commit
 ```bash
 make check     # ruff + pytest + mkdocs build --strict
 ```
@@ -79,3 +93,4 @@ make check     # ruff + pytest + mkdocs build --strict
 | `ci.yml` | push, pull request | ruff + pytest (torch CPU) |
 | `docs.yml` | push to `docs/**`, `mkdocs.yml` | strict build and Pages deploy |
 | `features.yml` | manual | text features in 6 shards |
+| `sources.yml` | manual | Fama-French factor files (blocked from the owner's network) |

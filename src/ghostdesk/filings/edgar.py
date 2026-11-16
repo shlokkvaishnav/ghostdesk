@@ -42,6 +42,7 @@ class Filing:
     filing_date: str
     report_date: str
     primary_doc: str
+    accepted: str = ""  # SEC acceptanceDateTime; true UTC (checked against the EDGAR header, which gives New York time)
 
     @property
     def url(self) -> str:
@@ -112,10 +113,12 @@ def list_filings(client: EdgarClient, cik: int, forms: tuple[str, ...] = ("10-K"
     out = {}
     for block in _filing_blocks(client, cik, since):
         report = block.get("reportDate", [""] * len(block["form"]))
+        accepted = block.get("acceptanceDateTime", [""] * len(block["form"]))
         for i, form in enumerate(block["form"]):
             if form in forms and block["filingDate"][i] >= since:
                 acc = block["accessionNumber"][i]
-                out[acc] = Filing(cik, acc, form, block["filingDate"][i], report[i], block["primaryDocument"][i])
+                out[acc] = Filing(cik, acc, form, block["filingDate"][i], report[i], block["primaryDocument"][i],
+                                  accepted[i])
     return sorted(out.values(), key=lambda f: f.filing_date, reverse=True)
 
 

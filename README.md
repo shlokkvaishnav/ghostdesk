@@ -16,13 +16,14 @@ A quant trading desk does three jobs. Ghostdesk does all three by itself, every 
 It trades with fake money (Alpaca paper trading). The results go to a public web page each day.
 
 ## Status
-New project. It starts from tested parts of earlier work:
-- an SEC download client that obeys the SEC access rules, and a section-aware report splitter;
-- a check that compares numbers with the official figures;
-- a trading simulator, the textbook trading schedules (TWAP, VWAP, Almgren-Chriss), and a PPO agent written from
-  scratch and checked against a standard library.
-
-Next: the data (500 US stocks since 2010, with no hindsight in the stock list), then the signal study.
+- **Done: the stock list.** The S&P 500 as it was on each date since 2010, with the companies that left it. Each
+  stock is linked to its SEC company number with checks against its reports: 96.8% of member-days are linked
+  ([data](docs/data.md)).
+- **Done: the report index.** 47,719 annual and quarterly reports, each with the exact time the SEC accepted it,
+  and each paired with the correct earlier report.
+- **Done: the tools.** Text-change measures from the paper, a spread estimate from daily prices, a trading
+  simulator, the textbook trading schedules (TWAP, VWAP, Almgren-Chriss), and a PPO agent written from scratch.
+- **Next:** the report text and numbers, prices (Alpaca), then the signal study.
 
 ## Run it
 ```bash

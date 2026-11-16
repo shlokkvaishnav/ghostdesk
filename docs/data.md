@@ -130,3 +130,23 @@ same fiscal quarter one year before (Q2 with Q2). The earlier report's period mu
 so a change of fiscal year gives no pair, not a wrong one. Amendments are kept in the index, but they are never
 paired, because an amendment often changes only a few items. A check stops the build if any report is paired with
 a later one.
+
+## Text-change features
+For each paired report, `scripts/extract_features.py` (run by the `features` workflow) keeps only numbers, not the
+text (`ghostdesk.signal.features`):
+- **Text:** the report's main document, with number tables removed (layout tables that hold text are kept). New
+  lines come only from block elements, so a heading split over several HTML elements stays one line, and line
+  wraps in the HTML source do not cut sentences.
+- **Parts:** the full text; risk factors (Item 1A); MD&A (10-K Item 7, 10-Q Part I Item 2). A heading must be a short
+  line, so a cross-reference such as "Item 7, Management's Discussion ... of this report" does not start a section.
+  A part shorter than 200 words (often "no material changes") is NaN, not a guess.
+- **Measures:** cosine and Jaccard as in the paper, and an edit similarity: sentences are aligned first, then words
+  inside the changed blocks, so that one changed number is one changed word.
+- **Numbers:** revenue, net income, assets and equity from the report's own XBRL instance (own period only, no
+  segments). For each period the first reported value is kept, so a later restatement never replaces it.
+
+**Limits:**
+- Some large companies (for example JPMorgan, Exxon Mobil) put MD&A in the annual report to shareholders
+  (Exhibit 13), not in the main 10-K document. Their MD&A part is NaN, and their full text is shorter. The main
+  measure is the full text, as in the paper.
+- Reports before mid-2009 often have no XBRL; their numbers are NaN.

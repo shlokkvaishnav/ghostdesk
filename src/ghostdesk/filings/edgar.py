@@ -66,7 +66,8 @@ class EdgarClient:
         h = hashlib.sha256(url.encode()).hexdigest()
         return self.cache_dir / h[:2] / h
 
-    def get(self, url: str) -> bytes:
+    def get(self, url: str, store: bool = True) -> bytes:
+        """GET with the disk cache. store=False reads the cache but does not add to it (large report pages)."""
         path = self._cache_path(url)
         if path.exists():
             return path.read_bytes()
@@ -83,8 +84,9 @@ class EdgarClient:
                 continue
             resp.raise_for_status()
             break
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(resp.content)
+        if store:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(resp.content)
         return resp.content
 
     def get_json(self, url: str):
@@ -122,5 +124,5 @@ def list_filings(client: EdgarClient, cik: int, forms: tuple[str, ...] = ("10-K"
     return sorted(out.values(), key=lambda f: f.filing_date, reverse=True)
 
 
-def download_filing_html(client: EdgarClient, filing: Filing) -> str:
-    return client.get(filing.url).decode("utf-8", errors="replace")
+def download_filing_html(client: EdgarClient, filing: Filing, store: bool = True) -> str:
+    return client.get(filing.url, store=store).decode("utf-8", errors="replace")

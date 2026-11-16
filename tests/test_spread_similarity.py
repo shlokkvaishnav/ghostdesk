@@ -56,9 +56,13 @@ def test_same_text_is_one_and_order_is_right():
     assert cosine(A, c) < cosine(A, B) and jaccard(A, c) < jaccard(A, B) and edit(A, c) < edit(A, B)
 
 
-def test_edit_counts_changed_sentences():
-    # 2 of 3 sentences are the same: 2 * 7 same words / (12 + 16 words)
-    assert abs(edit(A, B) - 2 * 7 / 28) < 1e-12
+def test_edit_counts_changed_words():
+    # 2 sentences are the same (7 words); in the changed one, all 5 old words are kept in order and 4 are added:
+    # 2 * (7 + 5) same words / (12 + 16 words)
+    assert abs(edit(A, B) - 2 * 12 / 28) < 1e-12
+    # one changed number changes one word, not the whole sentence
+    long = "In fiscal 2010 our net sales grew because of strong demand for our products in all regions."
+    assert edit(long, long.replace("2010", "2011")) > 0.9
 
 
 def test_empty_text_is_nan():

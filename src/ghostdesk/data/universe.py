@@ -324,3 +324,28 @@ def coverage(mapped: pd.DataFrame, start: str, end: str) -> dict:
     return {"intervals": int(inside.sum()), "mapped_intervals": int(m["cik"].notna().sum()),
             "member_day_share_mapped": float(ok[inside].sum() / days[inside].sum()),
             "by_source": m["source"].replace("", "unmapped").value_counts().to_dict()}
+
+
+def price_symbols(mapped: pd.DataFrame, current_tickers: dict[int, list[str]]) -> pd.Series:
+    """The symbol to get each interval's prices by. Price vendors keep a company's history under its current ticker
+    (FB's history is under META; the old symbol may be stale or reused). current_tickers: CIK -> today's SEC tickers.
+    - the interval's own ticker, if it is still one of the company's tickers (share classes: GOOG, GOOGL);
+    - else a current ticker that the company used in the index (FB -> META, BHGE -> BKR), else one without a
+      class or preferred suffix;
+    - else (no ticker today, or only preferred shares such as PCG.PE) the last ticker that the CIK had in the index.
+    An interval with no CIK gets None: the company is not confirmed, and its old ticker may now be another security
+    (Paramount's PARA)."""
+    norm = {int(k): [t.replace("-", ".") for t in v] for k, v in current_tickers.items()}
+    m = mapped.assign(_t=mapped["ticker"].str.replace("-", ".", regex=False))
+    last = m.dropna(subset=["cik"]).sort_values("start").groupby("cik")["_t"].last()
+    index_tickers = set(m["_t"])
+    out = []
+    for t, k in zip(m["_t"], m["cik"], strict=True):
+        if pd.isna(k):  # no confirmed company: its ticker may be another security now (PARA), so no prices
+            out.append(None)
+            continue
+        cur = norm.get(int(k), [])
+        used = [c for c in cur if c in index_tickers]  # a current ticker that the company used in the index
+        plain = [c for c in cur if "." not in c]  # else not a share-class or preferred symbol (PCG.PE)
+        out.append(t if t in cur else (used or plain or [last.get(k, t)])[0])
+    return pd.Series(out, index=mapped.index, name="price_symbol")

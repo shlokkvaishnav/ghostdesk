@@ -76,6 +76,10 @@ class AlpacaClient:
                 break
             params = dict(params, page_token=token)
         df = pd.DataFrame(rows, columns=["symbol", "t", "o", "h", "l", "c", "v", "n", "vw"])
+        gone = [s for s in symbols if s not in set(df["symbol"])]
+        if len(symbols) > 1 and gone:  # a multi-symbol answer can drop a symbol (seen: DOW); ask for each alone
+            df = pd.concat([df] + [self.bars([s], start, end, timeframe, adjustment, feed) for s in gone],
+                           ignore_index=True)
         df["t"] = pd.to_datetime(df["t"], utc=True)
         return df.sort_values(["symbol", "t"]).reset_index(drop=True)
 
@@ -86,17 +90,17 @@ def alpaca_symbol(ticker: str) -> str:
 
 
 def coverage(daily: pd.DataFrame, members: pd.DataFrame, start: str = "2016-01-01", end: str = "2025-12-31") -> dict:
-    """Share of member-days (from the universe intervals, `ticker`, `start`, `end`) on which the stock has a daily
-    bar, from `start` (Alpaca history begins in 2016). Days are NYSE sessions found in the data."""
+    """Share of member-days (from the universe intervals, `ticker` or `price_symbol`, `start`, `end`) on which the
+    stock has a daily bar, from `start` (Alpaca history begins in 2016). Days are NYSE sessions found in the data."""
     days = pd.DatetimeIndex(sorted(daily["t"].dt.tz_convert("America/New_York").dt.normalize().dt.tz_localize(None)
                                    .unique()))
     days = days[(days >= start) & (days <= end)]
     have = set(zip(daily["symbol"], daily["t"].dt.tz_convert("America/New_York").dt.normalize().dt.tz_localize(None),
                    strict=True))
     need = got = 0
-    for tk, s, e in zip(members["ticker"], members["start"], members["end"], strict=True):
+    syms = members["price_symbol"] if "price_symbol" in members else members["ticker"].map(alpaca_symbol)
+    for sym, s, e in zip(syms, members["start"], members["end"], strict=True):  # sym None: no prices
         d = days[(days >= s) & ((days < e) if pd.notna(e) else True)]
-        sym = alpaca_symbol(tk)
         need += len(d)
         got += sum((sym, x) in have for x in d)
     return {"member_days": need, "with_bar": got, "share": got / need if need else float("nan")}

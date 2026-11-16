@@ -64,3 +64,12 @@ def test_symbol_and_coverage():
                             "end": [pd.NaT, pd.Timestamp("2024-01-03")]})
     c = coverage(daily, members, "2024-01-01", "2024-12-31")
     assert c == {"member_days": 3, "with_bar": 3, "share": 1.0}
+
+
+def test_symbol_dropped_from_a_batch_is_asked_again():
+    replies = [Resp(200, {"bars": {"DOV": [bar("2024-01-02T05:00:00Z", 1.0)]}}),
+               Resp(200, {"bars": {"DOW": [bar("2024-01-02T05:00:00Z", 2.0)]}})]
+    s = Fake(replies)
+    df = AlpacaClient(headers={"k": "v"}, session=s, sleep=lambda x: None).bars(["DOV", "DOW"], "2024-01-01",
+                                                                               "2024-01-05")
+    assert sorted(df["symbol"]) == ["DOV", "DOW"] and s.calls[1]["symbols"] == "DOW"

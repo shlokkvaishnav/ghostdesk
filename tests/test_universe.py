@@ -12,6 +12,7 @@ from ghostdesk.data.universe import (
     members_on,
     normalise,
     parse_cik_lookup,
+    price_symbols,
     resolve,
 )
 
@@ -199,3 +200,13 @@ def test_predecessor_cik_for_a_holding_company_change():
     assert dis["end"].iloc[0] == dis["start"].iloc[1] == pd.Timestamp("2019-05-08")
     for t in ("GOOG", "GOOGL"):  # share classes share the old CIK
         assert out[out["ticker"] == t].sort_values("start")["cik"].tolist() == [1288776, 1652044]
+
+
+def test_price_symbols_follow_the_company_not_the_ticker():
+    m = pd.DataFrame({"ticker": ["FB", "META", "GOOG", "GOOGL", "BBBY", "OLD", "NOCIK", "PCG"],
+                      "start": pd.to_datetime(["2013-12-23", "2022-06-09", "2014-04-03", "2006-04-03", "1999-10-01",
+                                               "2001-01-01", "2001-01-01", "1996-01-02"]),
+                      "cik": pd.array([1326801, 1326801, 1652044, 1652044, 886158, 5, None, 75488], dtype="Int64")})
+    cur = {1326801: ["META"], 1652044: ["GOOGL", "GOOG"], 75488: ["PCG-PE", "PCG-PD"]}  # BBBY, OLD: no ticker
+    got = price_symbols(m, cur)
+    assert got.drop(6).tolist() == ["META", "META", "GOOG", "GOOGL", "BBBY", "OLD", "PCG"] and pd.isna(got[6])

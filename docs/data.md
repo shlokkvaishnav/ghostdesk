@@ -167,3 +167,30 @@ text (`ghostdesk.signal.features`):
   (Exhibit 13), not in the main 10-K document. Their MD&A part is NaN, and their full text is shorter. The main
   measure is the full text, as in the paper.
 - Reports before mid-2009 often have no XBRL; their numbers are NaN.
+
+## Prices
+`scripts/load_prices.py` gets daily bars from Alpaca (free plan, all US exchanges, history from 2016), adjusted for
+splits and dividends, and also raw. They are kept in `data/` (not in git).
+
+**Prices follow the company, not the old ticker.** Alpaca keeps a company's history under its current ticker
+(Facebook's history is under META). The old ticker can be stale (FB's 2018 prices miss later dividend adjustments)
+or used by another company now (Paramount's old PARA is now a different security, at a tenth of the price). Each
+interval gets its prices by the company's current SEC ticker; a share class keeps its own ticker (GOOG, GOOGL); a
+company with no ticker today uses its last index ticker. An interval with no confirmed company (no CIK) gets no
+prices, because its old ticker may now be another security.
+
+**Bad corporate-action days are removed.** On some spin-off days the vendor's adjusted series treats the spin-off as
+a split: ARNC on 2020-04-01 shows -89%, while the raw price fell 57% (the value moved to the new company). A day is
+removed (its return is NaN, not guessed) when the adjusted move is more than 0.3 in log terms and more than 0.2
+larger than the raw move. Real splits and dividends do not trigger the rule. 8 days were removed: AIV 2020-11-03,
+APTV 2017-12-05, ARNC 2020-04-01, CNX 2017-11-29, EQT 2018-11-13, RTX 2020-04-03, SW (WestRock) 2016-05-16, TGNA
+2017-06-01. After that, all daily moves larger than a factor of 2 on member days are real events (oil crash of
+2020-03-09, SVB, PG&E, Globe Life).
+
+**A return counts only if the stock was a member on both days.** The first day of an interval can compare two
+companies (EVHC on 2016-12-02: the old Envision before, the merged company after).
+
+| | |
+|---|---|
+| Symbols with data | 687 of 687 requested |
+| Member-days 2016-2025 with a daily bar | 98.0% |

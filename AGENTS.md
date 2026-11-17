@@ -8,8 +8,8 @@ exists.
 Ghostdesk is a research and paper-trading system for US stocks, with three parts:
 1. **Signal** — how much a company's 10-K/10-Q text changed since its comparable earlier report ("lazy prices",
    Cohen, Malloy and Nguyen 2020), tested without look-ahead or survivorship bias.
-2. **Execution** — a PPO agent that splits orders, compared with TWAP, VWAP and Almgren-Chriss in a calibrated
-   square-root-impact simulator.
+2. **Execution** — VWAP child orders over the first hour. A PPO agent was compared with TWAP, VWAP and
+   Almgren-Chriss on replayed real minute bars (Step 4); it did not beat VWAP, so the live desk uses VWAP.
 3. **Live** — one GitHub Actions job per US trading day on Alpaca paper trading, and a static GitHub Pages site.
 
 ## 2. Where to find what

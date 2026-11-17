@@ -5,13 +5,14 @@
 **Can a program read company reports, choose stocks, and trade them at a low cost, with no person at the desk?**
 
 ## What it does
-A quant trading desk does three jobs. Ghostdesk will do all three by itself:
+A quant trading desk does three jobs. Ghostdesk does all three by itself:
 1. **Signal.** It reads each annual and quarterly report (10-K, 10-Q) that a company sends to the SEC, and measures
    how much the text changed since the comparable earlier report. Research shows that companies that change their
    reports a lot often do worse later ("lazy prices", Cohen, Malloy and Nguyen, 2020). Ghostdesk tests this again,
    with no hindsight.
-2. **Execution.** An AI agent, trained with reinforcement learning, splits each trade into small orders. The study
-   measures how much it saves against standard methods (TWAP, VWAP, Almgren-Chriss) at each order size.
+2. **Execution.** It splits each trade into small orders over the first hour. A reinforcement-learning agent (PPO)
+   was tested against standard methods (TWAP, VWAP, Almgren-Chriss) on real minute bars. It did not beat VWAP,
+   so the live desk uses VWAP.
 3. **Live.** Each US trading day, one job trades with fake money (Alpaca paper trading) and updates a web page.
 
 ## Status

@@ -17,6 +17,7 @@ nav:
   - Data: data.md
   - Pre-registration: preregistration.md
   - Results: results.md
+  - Research note: note.md
   - Development:
       - Status: dev/status.md
       - Architecture: dev/architecture.md

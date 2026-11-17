@@ -239,3 +239,39 @@ All outside dependencies are injected (`Deps`), so whole runs are tested with a 
 | `Deps` | `broker, now, sleep, dollar_volume, minute_bars, store, log`. |
 | `month_done(store, today)` | A rebalance record of the month with a final reconciliation exists. |
 | `run_trade(deps, sessions, cfg, dry_run)` | One run: gate, plan, VWAP child orders, fills, reconciliation; returns `(ok, message, extra)`. ok needs 0 rejects and >= 90% of stocks on target. |
+
+## ghostdesk/ml/characteristics.py — point-in-time characteristics (core)
+Each value uses only data known at the formation close (`tests/test_ml.py` changes every later input and checks
+that nothing changes).
+
+| Name | Contract |
+|---|---|
+| `PRICE` | Price characteristics and their lookback (sessions): `mom_12_1, mom_6_1, rev_1, vol_21, vol_63, beta_252, maxret_21, amihud_63, high_52w, log_price`. A window must lie inside the stock's current index interval. |
+| `ACCOUNTING` | `log_assets, roa, turnover, equity_assets, sales_growth, asset_growth`, from the latest report accepted strictly before the close and at most `MAX_REPORT_AGE` (200) days old; 10-Q flows x4. |
+| `TEXT` | `composite` (the signal study's text-change rank). |
+| `ALL` | The model inputs: `PRICE`, `logdv` (from the panel), `ACCOUNTING`, `TEXT`. |
+| `MAX_REPORT_AGE` | 200 days. |
+| `price_matrices(returns, raw)` | Session x symbol matrix of each price characteristic, as known at each close. |
+| `report_values(features)` | One row per report: first-reported values and its accounting characteristics; growth against the same kind of report 365 +- 20 days earlier. |
+| `add_characteristics(panel, members, returns, raw, features)` | The panel with the raw values of `ALL`. |
+| `rank_features(panel, cols)` | Cross-sectional rank per month in [-0.5, 0.5]; missing -> 0. |
+
+## ghostdesk/ml/split.py — the test-period lock (core)
+| Name | Contract |
+|---|---|
+| `DEV_END`, `TEST_START`, `TEST_END` | 2021-12-31; 2022-01-01 to 2025-12-31. |
+| `PREREG` | `docs/preregistration-ml.md`. |
+| `TestPeriodLocked` | Raised when test rows are asked for before the pre-registration is committed. |
+| `dev(panel)` | Rows with month <= `DEV_END`. |
+| `committed(path)` | The commit that last changed `path`, or None if absent, untracked or changed locally. |
+| `unlock(path, check)` | That commit, or `TestPeriodLocked`. |
+| `everything(panel, path, check)` | All rows to `TEST_END` and the pre-registration commit (the walk-forward test trains on earlier months). |
+
+## ghostdesk/ml/models.py — walk-forward models (core)
+| Name | Contract |
+|---|---|
+| `target(panel)` | Rank of `fwd_ret` within the month, in [-0.5, 0.5]. |
+| `ridge(alpha)` | Ridge regression `Fit` (constant not penalised); `RIDGE_ALPHA` 10. |
+| `gbm(params, seeds)` | LightGBM `Fit` (native API), averaged over `SEEDS` (0, 1, 2); settings `GBM_BASE` with one entry of `GBM_GRID` (`small`, `base`, `large`). |
+| `Fit`, `Predictor` | `fit(x, y) -> predict(x_new)`. |
+| `walk_forward(panel, features, fit, first, min_train_months, refit_every)` | Out-of-sample `pred` for each month from `first`; refit every `refit_every` (12) months on all earlier months only; `fit_month` = the first month the model predicted. |

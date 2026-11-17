@@ -128,6 +128,12 @@ sic, spread, signal_age`, then the ranked signals `sim_*_r, composite, composite
 Producer: `scripts/signal_study.py`. `period, formation, primary, prereg_commit, code_commit, panel` and, per signal,
 the `signal.study.summary` dictionary.
 
+### data/ml_<period>.json and data/ml_predictions_<period>.parquet
+Producer: `scripts/ml_study.py`. JSON: `period, prereg_commit, features` and, per model (`linear`, `gbm_small`,
+`gbm_base`, `gbm_large`, `single_<characteristic>`), the `signal.study.summary` dictionary of its prediction, with
+`by_period` (2019 and 2020-2021 in `dev`). Parquet: `month, cik, pred, fit_month, model`; key `(model, month, cik)`;
+invariant `fit_month <= month` (the model trained only on months before `fit_month`).
+
 ### data/minutes.parquet
 Producer: `scripts/load_minutes.py`. Alpaca 1-minute bars (raw), 20 stocks, 2023-2024, minutes 0-59 after 09:30.
 Key: `(symbol, t)`.

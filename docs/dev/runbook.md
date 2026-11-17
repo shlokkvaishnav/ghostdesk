@@ -77,6 +77,15 @@ PYTHONPATH=src .venv/bin/python -u scripts/signal_study.py --period test --prere
 ### Pitfall-bias table — `scripts/pitfalls.py`
 Reruns the study on 2016-2021 with one guard off at a time; refuses dates in the test period. About 1 min.
 
+### ML study — `scripts/ml_study.py` (decision D18)
+```bash
+PYTHONPATH=src .venv/bin/python -u scripts/ml_study.py --period dev     # months to 2021; about 15 s
+PYTHONPATH=src .venv/bin/python -u scripts/ml_study.py --period test    # once, after the ML pre-registration
+```
+- Output: `data/ml_<period>.json`, `data/ml_predictions_<period>.parquet`.
+- `test` refuses to run unless `docs/preregistration-ml.md` is committed with no local change (`ml/split.py`).
+  **Do not run it** unless the owner asks; read [preregistration-ml.md](../preregistration-ml.md) first.
+
 ## 6. Execution study
 ```bash
 PYTHONPATH=src .venv/bin/python -u scripts/load_minutes.py        # 20 stocks, 2023-2024, first hour; about 4 min

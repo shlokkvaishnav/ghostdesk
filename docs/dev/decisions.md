@@ -168,3 +168,19 @@ the decision of an old entry — add a new entry that replaces it.
   found one difference: the study breaks quintile ties by dollar-volume order, the live code broke them by symbol
   order (78 tied values in one month). Fixed in `runner.select`. The first rebalance (2026-11-17) ran with the old
   tie-break, so a few stocks at a quintile border may differ from the tested rule in that month only.
+
+### D18 — An ML model of the cross-section, built as one harness (2026-11-18)
+- **Context:** the lazy-prices signal was not detected in 2022-2025. The owner asked for ML-finance methods that
+  learn which stocks to trade. The model must learn from the history of all stocks, not from the desk's own ~12
+  trades a year, and it must not use the test period to choose anything.
+- **Decision:** one pipeline for every model: point-in-time characteristics (`ml/characteristics.py`: 10 price, 1
+  size, 6 accounting, 1 text), ranked within the month; walk-forward fits on all earlier months, refit each
+  January; the same evaluation as the signal study (`signal.study.summary`: equal-weighted quintile long-short,
+  costs, IC, Fama-MacBeth, alpha). Models: ridge (baseline) and LightGBM (Gu, Kelly and Xiu 2020). The code
+  locks months after 2021 until `docs/preregistration-ml.md` is committed (`ml/split.py`).
+- **Selection (check period only):** of `GBM_GRID`, the setting with the highest mean IC in 2020-2021 is the one
+  tested. Development results (predictions 2019-2021) are in `data/ml_dev.json`.
+- **Not used:** market value and book-to-market (no share counts in the data); a neural network (the 2016-2021
+  sample, about 30,000 training rows by 2022, is small for one); hyperparameter search on more than three settings.
+- **Order of the other methods:** the price-chart CNN (Jiang, Kelly and Xiu 2023), time-safe text embeddings, and
+  risk engineering come after this, through the same harness.

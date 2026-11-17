@@ -35,6 +35,8 @@ the average decay of published signals (McLean and Pontiff 2016).
 **An ML model did not help either.** A LightGBM model of 18 point-in-time characteristics (price, size,
 accounts, this text signal), retrained each year, was tested once under its own pre-registration
 ([ML pre-registration](preregistration-ml.md)): -0.11% per month after costs, 95% CI [-0.72, +0.49], IC 0.000.
+A CNN on 20-day price-chart images ([CNN pre-registration](preregistration-cnn.md)) gave -0.30% per month,
+95% CI [-0.77, +0.17]; it mostly learned short-term reversal.
 
 ## 4. The cost of each mistake (2016-2021, before the test period)
 | Mistake (guard turned off) | Long-short %/month | Change (pp) |

@@ -195,5 +195,6 @@ the decision of an old entry — add a new entry that replaces it.
   2020-2021; the test trains on 2016-2021 and predicts 2022-2025. Three seeds, averaged. The prediction (probability
   of an up month) goes through `signal.study.summary` like every other model.
 - **Compute:** about 1.2 ms per training image on the Apple GPU (M-series, `mps`), 3x faster than the CPU; one seed
-  per run keeps each run under 10 minutes (hard rule 7).
+  per run was meant to keep each run under 10 minutes (hard rule 7). The development runs took 4-6 min; the test
+  runs (142,103 images) took 8, 14 and 8 min, so one broke the rule. A later CNN run goes to Kaggle or Actions.
 - **Lock:** `docs/preregistration-cnn.md` must be committed before `--period test` runs (`ml/split.py`).

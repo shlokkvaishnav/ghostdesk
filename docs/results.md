@@ -141,3 +141,36 @@ momentum alpha after 5 bps -0.19%/month (t -1.07); GBM IC by year 2022 -0.009, 2
 - Large companies only; 18 characteristics (no market value or book-to-market: no share counts in the data); a
   short training history (from 2016).
 - One tree setting, chosen on 2020-2021 from three.
+
+# Results: the chart-CNN study
+
+**Short answer.** A CNN that sees only a picture of each stock's last 20 sessions (Jiang, Kelly and Xiu 2023) did
+**not** rank next month's S&P 500 returns in the pre-registered test (2022-2025). Its long-short return after
+costs was -0.30% per month (95% CI [-0.77%, +0.17%]); its mean IC was -0.008.
+
+## The test
+Rules fixed in [the CNN pre-registration](preregistration-cnn.md) (commit `a09bfa2`, OpenTimestamps proof
+`preregistration-cnn.md.ots`); the test period was locked in code until that commit. Three networks (seeds 0, 1,
+2), trained once on 142,103 images of 2016-2021, predicted the month-ends 2022-01 to 2025-11 (47 months); 99.6% of
+the panel rows had an image. Run once on 2026-11-18.
+
+| ID | Hypothesis | Estimate | t | 95% CI | Holm p |
+|---|---|---|---|---|---|
+| **C1 (primary)** | CNN long-short after 5 bps > 0 | -0.30%/month | -1.25 | [-0.77%, +0.17%] | 0.42 |
+| C2 | CNN mean IC > 0 | -0.008 | -0.76 | [-0.030, +0.013] | 0.45 |
+
+Not confirmatory: gross long-short -0.14%/month (t -0.58); turnover 3.21 per month (of a maximum of 4), so the
+cost is about 16 bps a month; FF5 + momentum alpha after 5 bps -0.30%/month (t -1.36); IC by year 2022 +0.019,
+2023 -0.004, 2024 -0.027, 2025 -0.022. Validation losses 0.671-0.676 against 0.679 for always predicting the base
+rate.
+
+## What the network learned
+The CNN's prediction has a mean monthly rank correlation of **-0.25 with the last month's return** (`rev_1`),
+-0.15 with the distance from the 52-week high, -0.03 with 12-1 momentum and +0.08 with 21-day volatility. So it
+mostly learned short-term reversal: stocks that fell in the picture are predicted to rise. In 2022-2025 that
+pattern did not pay in large stocks, and the monthly turnover made it costly.
+
+## Limits
+- A small version of the paper's design (a quarter of the channels, about 1/10 of the training images, at most 5
+  epochs), forced by the data (2016-2021, large stocks only) and one laptop GPU.
+- Large stocks only: the paper's strongest results were in smaller stocks.

@@ -178,3 +178,43 @@ second, retries on 429/5xx, disk cache in `data/raw/` keyed by URL hash.
 ## ghostdesk/rl/ppo.py — PPO (ready)
 `PPOConfig`, `mlp`, `ActorCritic` (`.dist`, `.value`, `.act`), `gae(...)`, `PPO` (`.learn(total_steps)`,
 `.evaluate(env, episodes, seed)`). Needs the `ml` extra (torch).
+
+## ghostdesk/live/broker.py — Alpaca paper trading (core)
+Paper endpoint only (`PAPER`; any other base URL raises). Retries 429/5xx; `BrokerError` carries the status and
+Alpaca's message. `SNAPSHOTS` is the market-data snapshot URL.
+
+| Name | Contract |
+|---|---|
+| `Broker(headers, base=PAPER, session, sleep)` | `.clock()`, `.sessions(start, end)` (`date, open_utc, close_utc`), `.account()`, `.positions()` (symbol -> signed shares), `.position_rows()`, `.orders(after, status)` (all pages), `.submit(symbol, qty, side, client_order_id)` (day market order, whole shares), `.order(id)`, `.asset(symbol)`, `.latest_prices(symbols)` (IEX last trade, for sizing only), `.history()` (`day, equity, profit_loss`, equity > 0). |
+| `BrokerError` | `status`, `message`. |
+
+## ghostdesk/live/signal.py — the live signal (core)
+| Name | Contract |
+|---|---|
+| `WIKI_CURRENT` | Wikipedia page of today's S&P 500. |
+| `current_members(html)` | `symbol` (Alpaca form), `cik`, `name`, `sector`. |
+| `one_class_per_company(members, dollar_volume)` | One symbol per CIK: the higher dollar volume. |
+| `latest_pairs(index, sessions, formation_close_utc, window_days=120)` | Latest original paired report per CIK, tradeable at or before the close and less than 120 days before it; adds `tradeable`. |
+| `composite(scores)` | The primary signal for one date (`signal.study.add_signals`, ranks within form). |
+| `quintile(signal, n=5)` | 1..n (n = least change); NaN with fewer than n values. |
+
+## ghostdesk/live/portfolio.py — targets and VWAP orders (core)
+| Name | Contract |
+|---|---|
+| `FIRST_HOUR_PROFILE`, `BUCKET_MIN` | Mean share of first-hour volume per 5-minute bucket (Step 4 minute bars). |
+| `target_shares(sides, prices, equity, leg=0.5)` | Equal value per stock in each leg, whole shares. |
+| `per_name_value(sides, equity, leg=0.5)` | Value of one stock's target in the larger leg. |
+| `trades(target, current, prices, per_name, min_frac=0.2)` | symbol -> (current, target); closes and flips always, other changes only if worth >= 20% of a target. |
+| `buckets_left(minutes_since_open, after_hour=6)` | (start minute, weight) of the buckets not started; weights sum to 1. |
+| `split(qty, weights)` | Whole-share parts with an exact sum. |
+| `child_orders(current, target, weights)` | Signed orders per bucket; no order crosses zero (a flip closes in bucket 0). |
+| `side_of(qty)` | `buy` or `sell`. |
+
+## ghostdesk/live/site.py — data of the web page (core)
+| Name | Contract |
+|---|---|
+| `equity_curve(history, spy)` | `day, account, spy` in % from the first day. |
+| `report_scores(scores, members, at, days=120)` | Latest scored pair per member with `composite` and `q`. |
+| `rebalance_summary(log)` | Orders, fills, rejects, cost against the arrival price in bps (positive = paid more). |
+| `bucket_shares(log)` | Share of traded shares per bucket of a rebalance. |
+| `build(account, positions, history, spy, rebalances, scores, members, health, at, next_rebalance)` | The `live.json` dict. |

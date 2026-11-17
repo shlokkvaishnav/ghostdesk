@@ -30,6 +30,14 @@ Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
 | Test 2024, 3 seeds | **done**: PPO is not cheaper than VWAP in any cell; at 5% of volume it costs about 1 bp more (all seeds significant). Price-blind PPO is the same. See [results](../results.md#results-the-execution-study). |
 | Capacity | break-even fund about $7.2B at the pooled gross return |
 
+## Step 5 — live paper trading (built; first trade pending)
+| Item | State |
+|---|---|
+| Design | decision D15: pre-registered portfolio, monthly, VWAP child orders, Alpaca as the record of trades |
+| `live/` library and `scripts/live.py` | done, tested offline (`tests/test_live.py`); local runs on real SEC and Alpaca data: score (12 companies), trade dry run, site |
+| Workflow `live.yml` and the page (`web/`) | built; mkdocs moved to `/docs/` |
+| First full score and first trade | to do on Actions: `gh workflow run live.yml -f mode=score`, then `-f mode=trade` during market hours |
+
 ## Decisions on the review (owner: "do what is better")
 - Pre-2016 comparison: not with free data (D11). RL study reframed (D12). External timestamp done (D13).
 
@@ -51,8 +59,7 @@ list (survivorship) and mixing 10-K with 10-Q ranks change the most.
 ## Later
 
 - Step 4b — optional world model behind the gates of decision D2.
-- Step 5 — live job and site: daily GitHub Actions job, Alpaca paper orders over 30-60 min after the open, site from
-  JSON with `deploy-pages`, no commit, no failure emails.
+
 - Step 6 — research note, one-page summary, filing-diff visual, `make figures`.
 
 ## Known open items

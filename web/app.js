@@ -1,0 +1,162 @@
+// ghostdesk live page. Reads data/live.json (written by scripts/live.py site) and draws inline SVG at the real width.
+"use strict";
+const $ = (id) => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const tip = $("tip");
+let D = null;
+
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function svg(host, h) {
+  host.innerHTML = "";
+  const w = Math.max(280, host.clientWidth);
+  const s = el("svg", { viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: "img" }, host);
+  return [s, w];
+}
+const pct = (v, d = 1) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d) + "%";
+const money = (v) => "$" + Math.round(v).toLocaleString("en-US");
+const dfmt = (s) => new Date(s + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+function showTip(ev, html) {
+  tip.innerHTML = html;
+  const x = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8);
+  tip.style.left = x + "px";
+  tip.style.top = ev.clientY + 14 + "px";
+  tip.style.opacity = 1;
+}
+const hideTip = () => (tip.style.opacity = 0);
+
+function stats() {
+  const c = D.curve, last = c.length ? c[c.length - 1] : null;
+  const longN = D.positions.filter((p) => p.qty > 0).length, shortN = D.positions.filter((p) => p.qty < 0).length;
+  const vs = last && last.spy != null ? last.account - last.spy : null;
+  const items = [
+    [money(D.account.equity), "Account value"],
+    [last ? `<span class="${last.account >= 0 ? "pos" : "neg"}">${pct(last.account, 2)}</span>` : "—", "Since the start"],
+    [vs == null ? "—" : `<span class="${vs >= 0 ? "pos" : "neg"}">${pct(vs, 2)}</span>`, "Against SPY"],
+    [D.positions.length ? `${longN} / ${shortN}` : "—", D.positions.length ? "Long / short stocks"
+      : (D.next_rebalance ? `First trades ${dfmt(D.next_rebalance)}` : "No positions yet")],
+  ];
+  $("stats").innerHTML = items.map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join("");
+}
+
+function curve() {
+  const host = $("curve"), c = D.curve;
+  if (c.length < 2) { host.innerHTML = `<p class="empty">The line starts after the first full trading day.</p>`; return; }
+  const [s, w] = svg(host, 260), m = { l: 44, r: 12, t: 12, b: 26 };
+  const vals = c.flatMap((p) => [p.account, p.spy]).filter((v) => v != null);
+  let lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const pad = Math.max((hi - lo) * 0.12, 0.25); lo -= pad; hi += pad;
+  const X = (i) => m.l + (i / (c.length - 1)) * (w - m.l - m.r), Y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * (260 - m.t - m.b);
+  const step = niceStep((hi - lo) / 4);
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    el("line", { x1: m.l, x2: w - m.r, y1: Y(v), y2: Y(v), class: "axis", "stroke-width": Math.abs(v) < 1e-9 ? 1.4 : 1 }, s);
+    el("text", { x: m.l - 6, y: Y(v) + 4, "text-anchor": "end", class: "tick" }, s).textContent = pct(v, step < 1 ? 1 : 0);
+  }
+  const n = Math.min(5, c.length);
+  for (let k = 0; k < n; k++) {
+    const i = Math.round((k / (n - 1 || 1)) * (c.length - 1));
+    el("text", { x: X(i), y: 252, "text-anchor": k === 0 ? "start" : k === n - 1 ? "end" : "middle", class: "tick" }, s).textContent = dfmt(c[i].day);
+  }
+  const path = (key) => c.map((p, i) => (p[key] == null ? null : `${X(i)},${Y(p[key])}`)).filter(Boolean).join(" L");
+  el("path", { d: "M" + path("spy"), fill: "none", stroke: "var(--muted)", "stroke-width": 1.6, "stroke-dasharray": "4 4" }, s);
+  el("path", { d: "M" + path("account"), fill: "none", stroke: "var(--accent)", "stroke-width": 2.4, "stroke-linejoin": "round" }, s);
+  const hit = el("rect", { x: m.l, y: m.t, width: w - m.l - m.r, height: 260 - m.t - m.b, fill: "transparent" }, s);
+  const cross = el("line", { y1: m.t, y2: 260 - m.b, stroke: "var(--ink)", "stroke-width": 1, opacity: 0 }, s);
+  hit.addEventListener("pointermove", (ev) => {
+    const r = s.getBoundingClientRect(), i = Math.round(((ev.clientX - r.left) * (w / r.width) - m.l) / (w - m.l - m.r) * (c.length - 1));
+    const p = c[Math.max(0, Math.min(c.length - 1, i))];
+    cross.setAttribute("x1", X(c.indexOf(p))); cross.setAttribute("x2", X(c.indexOf(p))); cross.setAttribute("opacity", .35);
+    showTip(ev, `<b>${dfmt(p.day)}</b><br>ghostdesk ${pct(p.account, 2)}<br>SPY ${p.spy == null ? "—" : pct(p.spy, 2)}`);
+  });
+  hit.addEventListener("pointerleave", () => { hideTip(); cross.setAttribute("opacity", 0); });
+}
+function niceStep(x) {
+  const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+
+let dots = [];
+function strip() {
+  const host = $("strip"), u = D.universe;
+  if (!u.length) { host.innerHTML = `<p class="empty">The desk is reading the reports.</p>`; return; }
+  const H = host.clientWidth < 560 ? 300 : 340, r = host.clientWidth < 560 ? 3.4 : 4.4;
+  const [s, w] = svg(host, H), m = { l: 52, r: 10, t: 8, b: 30 };
+  const t = u.map((d) => Date.parse(d.accepted + "T12:00:00Z")), t1 = Math.max(...t), t0 = t1 - 120 * 864e5;
+  const X = (v) => m.l + v * (w - m.l - m.r), Y = (ms) => m.t + (t1 - ms) / (t1 - t0) * (H - m.t - m.b);
+  el("rect", { x: X(0), y: m.t - 4, width: X(.2) - X(0), height: H - m.t - m.b + 8, rx: 10, fill: "var(--cool-soft)" }, s);
+  el("rect", { x: X(.8), y: m.t - 4, width: X(1) - X(.8), height: H - m.t - m.b + 8, rx: 10, fill: "var(--accent-soft)" }, s);
+  for (let k = 0; k <= 4; k++) {
+    const ms = t1 - k * 30 * 864e5;
+    el("line", { x1: m.l, x2: w - m.r, y1: Y(ms), y2: Y(ms), class: "axis", "stroke-dasharray": "2 4" }, s);
+    el("text", { x: m.l - 8, y: Y(ms) + 4, "text-anchor": "end", class: "tick" }, s).textContent = dfmt(new Date(ms).toISOString().slice(0, 10));
+  }
+  el("text", { x: X(0), y: H - 8, class: "tick" }, s).textContent = "← rewrote the most";
+  el("text", { x: X(1), y: H - 8, "text-anchor": "end", class: "tick" }, s).textContent = "changed the least →";
+  dots = u.map((d, i) => {
+    const c = el("circle", { cx: X(d.rank), cy: Y(t[i]), r, class: d.q === 1 ? "q1" : d.q === 5 ? "q5" : "qm" }, s);
+    c.addEventListener("pointerenter", (ev) => showTip(ev, `<b>${d.symbol}</b> · ${d.form} of ${dfmt(d.accepted)}<br>Change rank ${(d.rank * 100).toFixed(0)} of 100<br>${d.q === 5 ? "Buy" : d.q === 1 ? "Sell short" : "No position"}`));
+    c.addEventListener("pointerleave", hideTip);
+    return { c, d };
+  });
+  highlight();
+}
+function highlight() {
+  const q = $("find").value.trim().toUpperCase();
+  for (const { c, d } of dots) c.classList.toggle("hl", q !== "" && d.symbol.startsWith(q));
+}
+
+function sectors() {
+  const host = $("sectors"), rows = D.sectors;
+  if (!rows.length) { host.innerHTML = `<p class="empty">${D.next_rebalance ? "First trades on " + dfmt(D.next_rebalance) + "." : "No positions yet."}</p>`; return; }
+  const lh = 30, [s, w] = svg(host, rows.length * lh + 26), lab = Math.min(150, w * .36), half = (w - lab) / 2;
+  const mx = Math.max(...rows.flatMap((r) => [r.long, r.short]), 1), cx = lab + half;
+  rows.forEach((r, i) => {
+    const y = i * lh + 6;
+    el("text", { x: 0, y: y + 15, class: "bar-lbl", style: "font-size:13px;fill:var(--ink)" }, s).textContent = r.sector.replace("Information Technology", "Tech").replace("Communication Services", "Communication").replace("Consumer Discretionary", "Discretionary");
+    el("rect", { x: cx - (r.short / mx) * (half - 6), y, width: (r.short / mx) * (half - 6), height: 20, rx: 4, fill: "var(--cool)" }, s);
+    el("rect", { x: cx, y, width: (r.long / mx) * (half - 6), height: 20, rx: 4, fill: "var(--accent)" }, s);
+  });
+  el("line", { x1: cx, x2: cx, y1: 0, y2: rows.length * lh + 4, stroke: "var(--ink)", "stroke-width": 1 }, s);
+  el("text", { x: cx - 6, y: rows.length * lh + 22, "text-anchor": "end", class: "tick" }, s).textContent = "short";
+  el("text", { x: cx + 6, y: rows.length * lh + 22, class: "tick" }, s).textContent = "long";
+}
+
+function feed() {
+  const r = D.reports.slice(0, 10);
+  $("feed").innerHTML = r.length ? r.map((x) => `<li><span class="tk">${x.symbol}</span><span class="nm">${x.name} · ${x.form} · ${dfmt(x.accepted)}</span>
+    <span class="meter" title="change rank ${(x.rank * 100).toFixed(0)} of 100"><i style="left:${x.rank * 100}%;background:${x.q === 5 ? "var(--accent)" : x.q === 1 ? "var(--cool)" : "var(--muted)"}"></i></span></li>`).join("")
+    : `<li class="empty">No new reports yet.</li>`;
+}
+
+function vwap() {
+  const host = $("vwap"), prof = D.profile, done = new Map(D.buckets.map((b) => [b.minute, b.share]));
+  const [s, w] = svg(host, 190), m = { l: 8, r: 8, t: 10, b: 26 }, n = prof.length, bw = (w - m.l - m.r) / n;
+  const mx = Math.max(...prof, ...D.buckets.map((b) => b.share));
+  const H = (v) => (v / mx) * (190 - m.t - m.b);
+  prof.forEach((v, i) => {
+    const x = m.l + i * bw;
+    el("rect", { x: x + bw * .12, y: 190 - m.b - H(v), width: bw * .76, height: H(v), rx: 4, fill: "var(--chip)", stroke: "var(--rule)" }, s);
+    const got = done.get(i * 5);
+    if (got) el("rect", { x: x + bw * .3, y: 190 - m.b - H(got), width: bw * .4, height: H(got), rx: 3, fill: "var(--accent)" }, s);
+    if (i % (w < 500 ? 3 : 1) === 0) el("text", { x: x + bw / 2, y: 190 - 8, "text-anchor": "middle", class: "tick" }, s).textContent = `9:${String(30 + i * 5).padStart(2, "0")}`.replace("9:60", "10:00").replace(/9:(6|7|8)(\d)/, (_, a, b) => `10:${a - 6}${b}`);
+  });
+}
+
+function health() {
+  const names = { score: "Reports read", trade: "Trading", site: "Page" };
+  $("health").innerHTML = Object.entries(D.health).map(([k, h]) =>
+    `<span title="${h.message.replace(/"/g, "'")}"><i class="dot" style="background:${h.ok ? "var(--ok)" : "var(--accent)"}"></i>${names[k] || k} · ${new Date(h.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>`).join("")
+    + `<span>Updated ${new Date(D.updated).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>`;
+}
+
+function draw() { if (!D) return; stats(); curve(); strip(); sectors(); feed(); vwap(); health(); }
+
+fetch("data/live.json", { cache: "no-cache" }).then((r) => r.json()).then((d) => { D = d; draw(); })
+  .catch(() => { $("stats").innerHTML = `<div class="stat"><b>—</b><span>Live data is not available now.</span></div>`; });
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(draw, 120); });
+$("find").addEventListener("input", highlight);

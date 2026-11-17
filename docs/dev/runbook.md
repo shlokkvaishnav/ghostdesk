@@ -87,7 +87,20 @@ PYTHONPATH=src .venv/bin/python -u scripts/execution_summary.py   # table of the
 ```
 Design changes use `--eval val` only (train 2023-01..09, evaluate 2023-10..12). `--eval test` (2024) is the final run.
 
-## 7. Checks before a commit
+## 7. Live job (Step 5, decision D15)
+Runs on GitHub Actions (`.github/workflows/live.yml`); state in the Actions cache `live-state-*` (`data/live/`).
+```bash
+PYTHONPATH=src .venv/bin/python -u scripts/live.py score --limit 12   # local test: 12 companies, about 30 s
+PYTHONPATH=src .venv/bin/python -u scripts/live.py trade --dry-run    # the plan; never sends an order
+PYTHONPATH=src .venv/bin/python -u scripts/live.py site               # site-data/live.json
+gh workflow run live.yml -f mode=score                                # full score on Actions (about 12 min cold)
+gh workflow run live.yml -f mode=trade                                # first trade: during market hours, empty account
+```
+The page source is `web/` (product page; `web/data/live.json` comes from the job). The whole site (page at the root,
+mkdocs under `/docs/`) is built and deployed only by `live.yml`. A scheduled workflow stops after 60 days without a
+commit in the repository; the page shows the time of each mode's last run.
+
+## 8. Checks before a commit
 ```bash
 make check     # ruff + pytest + mkdocs build --strict
 ```

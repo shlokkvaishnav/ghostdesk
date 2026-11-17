@@ -55,5 +55,5 @@ fakes), and never reads `.env` except through `filings.edgar.user_agent` and `da
 - Short jobs (< 10 min) run locally with the SEC cache in `data/raw` (342 MB, gitignored).
 - Long jobs run on GitHub Actions, started by hand (`workflow_dispatch`), inputs from a private release, outputs
   as private artifacts. See [runbook.md](runbook.md).
-- The live job (Step 5, not built) will run once per trading day on GitHub Actions and deploy the site with
+- The live job (Step 5, `live.yml`) runs on GitHub Actions and deploys the whole site (page + docs) with
   `upload-pages-artifact` + `deploy-pages`, with no commit.

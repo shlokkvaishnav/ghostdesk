@@ -26,7 +26,10 @@ A quant trading desk does three jobs. Ghostdesk will do all three by itself:
 - **Execution study: done.** On real 2024 minute bars, the PPO agent did **not** trade more cheaply than VWAP at
   any order size; at 5% of daily volume it cost about 1 bp more. The strategy can trade up to about $7.2 billion
   before costs use up its gross return. Details: [results](results.md#results-the-execution-study).
-- **Next:** the live job and the web page.
+- **Live job: built.** Each month, the desk buys the least-changed and sells the most-changed reports with
+  fake money (Alpaca paper trading), in VWAP orders over the first hour. The [live page](../) shows the account
+  against SPY.
+- **Next:** the first trades, then the research note (Step 6).
 
 ## Run it
 ```bash

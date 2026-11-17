@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ghostdesk — a paper trading desk for lazy reports</title>
+<meta name="description" content="A live paper-trading desk: it buys S&P 500 companies whose reports changed the least, and sells those that changed the most.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238c2346'/%3E%3Cpath d='M9 21V12a7 7 0 0 1 14 0v9l-2.3-1.6L18.4 21 16 19.4 13.6 21l-2.3-1.6z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 18px; overflow: hidden; margin-top: 2rem; }
+  .stat { background: var(--card); padding: 1rem 1.15rem; }
+  .stat b { display: block; font: 600 1.7rem/1.1 var(--serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat > span { font-size: .8rem; color: var(--muted); }
+  @media (max-width: 40rem) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .pos { color: var(--ok); } .neg { color: var(--accent); }
+  .legend { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; font-size: .85rem; color: var(--muted); margin-bottom: .6rem; }
+  .legend i { display: inline-block; width: .8rem; height: .8rem; border-radius: 3px; margin-right: .35rem; vertical-align: -.1rem; }
+  .find { font: 500 .9rem/1 var(--sans); padding: .55rem .9rem; border-radius: 99px; border: 1px solid var(--rule); background: var(--card); color: var(--ink); width: 11rem; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .8rem; }
+  .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--paper); font-size: .8rem; line-height: 1.35; padding: .45rem .6rem; border-radius: 8px; opacity: 0; transition: opacity .12s; z-index: 9; max-width: 15rem; }
+  .feed { list-style: none; margin: 0; padding: 0; }
+  .feed li { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr) 7rem; gap: .8rem; align-items: center; padding: .55rem 0; border-top: 1px solid var(--rule); font-size: .92rem; }
+  .feed li:first-child { border-top: 0; }
+  .feed .tk { font-weight: 600; }
+  .feed .nm { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 40rem) { .feed li { grid-template-columns: 3.4rem minmax(0, 1fr) 3.6rem; gap: .6rem; } }
+  .meter { height: 8px; border-radius: 99px; background: var(--chip); position: relative; }
+  .meter i { position: absolute; top: -3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--card); }
+  .empty { color: var(--muted); font-size: .95rem; padding: 2.2rem 0; text-align: center; }
+  .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; margin-right: .35rem; }
+  .health { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .q1 { fill: var(--cool); } .q5 { fill: var(--accent); } .qm { fill: var(--muted); opacity: .45; }
+  .hl { stroke: var(--ink); stroke-width: 2; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top">
+    <span class="brand">ghostdesk</span>
+    <a href="docs/">Method &amp; results</a>
+  </nav>
+
+  <header class="hero">
+    <div class="kicker">Live paper trading · S&amp;P 500</div>
+    <h1>Lazy reports, traded every month</h1>
+    <p class="sub">The desk reads every 10-K and 10-Q. It buys the companies whose new report is most like the last one, and sells short the companies that rewrote theirs. Fake money, real prices.</p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <section>
+    <h2>The desk against the market</h2>
+    <p class="cap">Return since the start of the account, and the S&amp;P 500 (SPY) over the same days.</p>
+    <div class="panel"><div class="legend"><span><i style="background:var(--accent)"></i>ghostdesk</span><span><i style="background:var(--muted)"></i>SPY</span></div><div id="curve"></div></div>
+  </section>
+
+  <section>
+    <div class="row">
+      <div><h2>Every company, by how much its report changed</h2>
+        <p class="cap" style="margin:0">One dot is one company's latest report against the same report a year before, placed by the day it was filed.</p></div>
+      <input class="find" id="find" placeholder="Find a ticker" autocomplete="off" spellcheck="false" aria-label="Find a ticker">
+    </div>
+    <div class="panel">
+      <div class="legend"><span><i style="background:var(--cool)"></i>Sell short: changed most</span><span><i style="background:var(--accent)"></i>Buy: changed least</span></div>
+      <div id="strip"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="grid g2">
+      <div>
+        <h2>Where the money is</h2>
+        <p class="cap">Long and short value by sector, in % of the account.</p>
+        <div class="panel" id="sectors"></div>
+      </div>
+      <div>
+        <h2>New reports</h2>
+        <p class="cap">The newest filings the desk has read.</p>
+        <div class="panel"><ul class="feed" id="feed"></ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How the orders go out</h2>
+    <p class="cap">Each rebalance is split into small orders over the first hour, in step with the market's usual volume. In our tests this beat a trained RL agent.</p>
+    <div class="panel"><div class="legend"><span><i style="background:var(--muted)"></i>Usual volume, every 5 minutes</span><span><i style="background:var(--accent)"></i>Last rebalance</span></div><div id="vwap"></div></div>
+  </section>
+
+  <footer>
+    <p>Paper trading: Alpaca simulates the fills, so the costs here are not real costs. Not investment advice. Reports from SEC EDGAR, prices from Alpaca.</p>
+    <div class="health" id="health"></div>
+  </footer>
+</div>
+<div class="tip" id="tip" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -166,3 +166,10 @@ written by the producers; [docs/data.md](../data.md) quotes them.
 | `data/raw/` | `EdgarClient` cache (SHA-256 of the URL). Submissions JSON, folder indexes, lookup file. About 350 MB. |
 | `data/sources/` | fja05680 CSV and the two Wikipedia pages, as downloaded (the universe depends on their date). |
 | `data/features_run/` | Shard artifacts of the last `features` run. |
+
+### Live state: data/live/ (Actions cache `live-state-*`)
+Producer: `scripts/live.py`. `members.parquet` (`symbol, cik, name, sector`), `index.parquet` (report index of
+today's members, as `filings_index`), `scores.parquet` (`cik, accession, prev_accession, form, report_date,
+accepted_utc, error` and the `sim_` features of `signal.features.pair_features`; one row per pair, never recomputed),
+`rebalance_<YYYYMMDD>.json` (plan, signal, arrival prices, orders and fills), `health.json` (per mode: `at, ok,
+message`). Output for the page: `site-data/live.json` (gitignored; built by `live.site.build`).

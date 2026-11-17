@@ -1,0 +1,108 @@
+# The live job and the whole Pages site (decision D15). Silent: every step continues on error; the result of each
+# mode is in live.json and on the page, so a failed step sends no email.
+#   21:40 UTC weekdays        score (new reports) + site
+#   13:40/14:40/15:40, d 1-7  trade (the script trades only on the first session of a month, 0-150 min after open)
+#   push to docs/web          site only
+#   manual                    any mode (the first trade on an empty account is started by hand)
+name: live
+on:
+  schedule:
+    - cron: "40 21 * * 1-5"
+    - cron: "40 13 1-7 * *"
+    - cron: "40 14 1-7 * *"
+    - cron: "40 15 1-7 * *"
+  push:
+    branches: [main]
+    paths: ["docs/**", "web/**", "mkdocs.yml", ".github/workflows/live.yml"]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "score, trade or site"
+        default: site
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: live
+  cancel-in-progress: false  # never stop a running rebalance
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 220
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e . mkdocs-material==9.5.39
+        continue-on-error: true
+      - id: mode
+        continue-on-error: true
+        run: |
+          case "${{ github.event_name }}:${{ github.event.schedule }}" in
+            "schedule:40 21 * * 1-5") m=score ;;
+            schedule:*) m=trade ;;
+            workflow_dispatch:*) m="${{ inputs.mode }}" ;;
+            *) m=site ;;
+          esac
+          echo "mode=$m" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@v4
+        continue-on-error: true
+        with:
+          path: data/live
+          key: live-state-${{ github.run_id }}
+          restore-keys: live-state-
+      - name: score
+        if: steps.mode.outputs.mode == 'score'
+        continue-on-error: true
+        timeout-minutes: 45
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python -u scripts/live.py score
+      - name: trade
+        if: steps.mode.outputs.mode == 'trade'
+        continue-on-error: true
+        timeout-minutes: 180
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python -u scripts/live.py trade
+      - name: site data
+        continue-on-error: true
+        timeout-minutes: 10
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python -u scripts/live.py site
+      - uses: actions/cache/save@v4
+        if: always() && steps.mode.outputs.mode != 'site'
+        continue-on-error: true
+        with:
+          path: data/live
+          key: live-state-${{ github.run_id }}
+      - name: build site
+        continue-on-error: true
+        run: |
+          mkdir -p _site/data
+          cp -R web/. _site/
+          cp site-data/live.json _site/data/live.json || true
+          mkdocs build --strict -q -d _site/docs
+      - uses: actions/upload-pages-artifact@v3
+        continue-on-error: true
+        with:
+          path: _site
+  deploy:
+    needs: run
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,182 @@
+"""Live trading rules on small made-up tables: no look-ahead in the live signal, the same ranks as the study, whole-
+share targets, idempotent trades, and child orders that never cross zero."""
+import json
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from ghostdesk.live.broker import Broker, BrokerError
+from ghostdesk.live.portfolio import (
+    FIRST_HOUR_PROFILE,
+    buckets_left,
+    child_orders,
+    per_name_value,
+    split,
+    target_shares,
+    trades,
+)
+from ghostdesk.live.signal import composite, current_members, latest_pairs, one_class_per_company, quintile
+from ghostdesk.signal.study import add_signals
+
+SESSIONS = pd.DatetimeIndex(pd.bdate_range("2026-06-01", "2026-12-31"))
+
+
+def idx(rows):
+    df = pd.DataFrame(rows, columns=["cik", "accession", "accepted_utc", "amendment", "prev_accession", "form"])
+    df["accepted_utc"] = pd.to_datetime(df["accepted_utc"], utc=True)
+    return df
+
+
+def test_latest_pairs_uses_only_reports_tradeable_by_the_close():
+    close = pd.Timestamp("2026-11-02 21:00", tz="UTC")  # Monday 16:00 New York (EST)
+    df = idx([
+        (1, "a-old", "2026-08-01 12:00", False, "p", "10-Q"),
+        (1, "a-new", "2026-11-02 15:00", False, "p", "10-Q"),   # after Monday's open: tradeable Tuesday -> not used
+        (2, "b", "2026-11-02 14:00", False, "p", "10-K"),       # 09:00 New York: tradeable at Monday's open
+        (3, "c-amend", "2026-10-01 12:00", True, "p", "10-K/A"),  # amendments are never used
+        (4, "d", "2026-05-01 12:00", False, "p", "10-K"),       # older than 120 days
+        (5, "e", "2026-10-01 12:00", False, None, "10-K"),      # no earlier report
+    ])
+    out = latest_pairs(df, SESSIONS, close).set_index("cik")["accession"].to_dict()
+    assert out == {1: "a-old", 2: "b"}
+
+
+def test_composite_matches_the_study_ranking():
+    rng = np.random.default_rng(0)
+    s = pd.DataFrame({"form": ["10-K"] * 6 + ["10-Q"] * 6,
+                      **{m: rng.random(12) for m in ("sim_full_cosine", "sim_full_jaccard", "sim_full_edit")}})
+    study = add_signals(s.assign(month=pd.Timestamp("2026-10-30"), sic="3571"))["composite"]
+    assert np.allclose(composite(s).to_numpy(), study.to_numpy())
+
+
+def test_quintile_top_is_least_change():
+    q = quintile(pd.Series(np.arange(10.0)))
+    assert q.iloc[0] == 1 and q.iloc[-1] == 5 and q.value_counts().eq(2).all()
+    assert quintile(pd.Series([1.0, np.nan, 2.0])).isna().all()  # fewer than 5 values: no quintiles
+
+
+def test_members_from_wikipedia_table_and_share_classes():
+    html = """<table><tr><th>Symbol</th><th>Security</th><th>GICS Sector</th><th>CIK</th></tr>
+    <tr><td>BRK-B</td><td>Berkshire</td><td>Financials</td><td>1067983</td></tr>
+    <tr><td>GOOGL</td><td>Alphabet A</td><td>Communication</td><td>1652044</td></tr>
+    <tr><td>GOOG</td><td>Alphabet C</td><td>Communication</td><td>1652044</td></tr></table>"""
+    m = current_members(html)
+    assert m["symbol"].tolist() == ["BRK.B", "GOOGL", "GOOG"]
+    one = one_class_per_company(m, pd.Series({"GOOG": 5.0, "GOOGL": 9.0, "BRK.B": 1.0}))
+    assert sorted(one["symbol"]) == ["BRK.B", "GOOGL"]
+
+
+def test_target_shares_equal_value_whole_shares():
+    sides = pd.Series({"A": 1, "B": 1, "C": -1, "D": 0})
+    t = target_shares(sides, pd.Series({"A": 10.0, "B": 33.0, "C": 50.0, "D": 1.0}), equity=1000)
+    assert t == {"A": 25, "B": 8, "C": -10}
+    assert per_name_value(sides, 1000) == 250
+
+
+def test_trades_skip_small_changes_but_always_close_and_flip():
+    prices = pd.Series({"A": 10.0, "B": 10.0, "C": 10.0, "D": 10.0})
+    t = trades(target={"A": 25, "B": -10, "D": 30}, current={"A": 24, "B": 10, "C": 5, "D": 10},
+               prices=prices, per_name=250)
+    assert t == {"B": (10, -10), "C": (5, 0), "D": (10, 30)}
+    assert trades({"A": 25}, {"A": 25}, prices, 250) == {}  # a rerun after the rebalance trades nothing
+
+
+def test_buckets_left_follow_the_profile():
+    b = buckets_left(0)
+    assert len(b) == 12 and b[0] == (0, pytest.approx(FIRST_HOUR_PROFILE[0] / sum(FIRST_HOUR_PROFILE)))
+    late = buckets_left(12.0)  # started at 09:42: buckets from 09:45
+    assert late[0][0] == 15 and sum(w for _, w in late) == pytest.approx(1)
+    after = buckets_left(75)
+    assert [m for m, _ in after] == [75, 80, 85, 90, 95, 100]
+
+
+def test_split_is_exact():
+    for q in (0, 1, 7, 101):
+        parts = split(q, [0.5, 0.3, 0.2])
+        assert sum(parts) == q and min(parts) >= 0
+
+
+@pytest.mark.parametrize("cur,tgt", [(10, 30), (30, 10), (-10, -40), (10, 0), (0, -7), (12, -9), (-5, 8)])
+def test_child_orders_reach_target_and_never_cross_zero(cur, tgt):
+    for w in ([1.0], [0.5, 0.5], [0.2] * 5):
+        pos = cur
+        for bucket in child_orders(cur, tgt, w):
+            for q in bucket:
+                new = pos + q
+                assert pos == 0 or new == 0 or np.sign(new) == np.sign(pos), (pos, q)
+                pos = new
+        assert pos == tgt
+
+
+class FakeResponse:
+    def __init__(self, status, body):
+        self.status_code, self._body = status, body
+        self.content = json.dumps(body).encode()
+        self.text = self.content.decode()
+
+    def json(self):
+        return self._body
+
+
+class FakeSession:
+    def __init__(self, answers):
+        self.answers, self.calls = list(answers), []
+
+    def request(self, method, url, **kw):
+        self.calls.append((method, url, kw))
+        return self.answers.pop(0)
+
+
+def test_broker_refuses_a_live_endpoint():
+    with pytest.raises(ValueError):
+        Broker(headers={}, base="https://api.alpaca.markets/v2")
+
+
+def test_broker_retries_then_raises_with_message():
+    s = FakeSession([FakeResponse(429, {}), FakeResponse(200, [{"symbol": "A", "qty": "-3"}])])
+    b = Broker(headers={}, session=s, sleep=lambda _: None)
+    assert b.positions() == {"A": -3}
+    s = FakeSession([FakeResponse(403, {"message": "insufficient buying power"})])
+    with pytest.raises(BrokerError, match="insufficient buying power"):
+        Broker(headers={}, session=s, sleep=lambda _: None).submit("A", 1, "buy", "x")
+
+
+def test_broker_sessions_in_utc():
+    s = FakeSession([FakeResponse(200, [{"date": "2026-11-27", "open": "09:30", "close": "13:00"}])])
+    d = Broker(headers={}, session=s).sessions("2026-11-27", "2026-11-27")
+    assert str(d["open_utc"][0]) == "2026-11-27 14:30:00+00:00" and str(d["close_utc"][0]) == "2026-11-27 18:00:00+00:00"
+
+
+def test_rebalance_cost_against_arrival():
+    from ghostdesk.live.site import rebalance_summary
+    log = {"date": "2026-12-01", "arrival": {"A": 100.0, "B": 50.0},
+           "orders": [{"symbol": "A", "qty": 10, "price": 100.1, "filled_qty": 10},   # bought 10 bps higher
+                      {"symbol": "B", "qty": -20, "price": 49.95, "filled_qty": 20},  # sold 10 bps lower
+                      {"symbol": "C", "qty": -5, "error": "not shortable"}]}
+    s = rebalance_summary(log)
+    assert s["cost_bps"] == pytest.approx(10.0) and s["rejected"] == 1 and s["filled"] == 2
+
+
+def test_equity_curve_in_percent_from_the_first_day():
+    from ghostdesk.live.site import equity_curve
+    h = pd.DataFrame({"day": pd.to_datetime(["2026-11-16", "2026-11-17"]), "equity": [100000.0, 101000.0],
+                      "profit_loss": [0, 1000]})
+    spy = pd.DataFrame({"t": ["2026-11-16T05:00:00Z", "2026-11-17T05:00:00Z"], "c": [500.0, 495.0]})
+    c = equity_curve(h, spy)
+    assert c[1] == {"day": "2026-11-17", "account": 1.0, "spy": -1.0}
+
+
+def test_report_scores_rank_latest_pair_per_member():
+    from ghostdesk.live.site import report_scores
+    at = pd.Timestamp("2026-11-17", tz="UTC")
+    rows = [(c, f"a{c}", "10-Q", f"2026-1{1 if c % 2 else 0}-0{c % 9 + 1}", c / 10) for c in range(1, 8)]
+    rows.append((1, "old", "10-Q", "2026-06-01", 0.0))  # older than 120 days
+    s = pd.DataFrame(rows, columns=["cik", "accession", "form", "accepted_utc", "sim_full_cosine"])
+    s["sim_full_jaccard"] = s["sim_full_cosine"]
+    s["sim_full_edit"] = s["sim_full_cosine"]
+    s["error"] = ""
+    m = pd.DataFrame({"cik": range(1, 8), "symbol": list("ABCDEFG"), "name": "x", "sector": "y"})
+    r = report_scores(s, m, at)
+    assert len(r) == 7 and "old" not in set(r["accession"])
+    assert r.set_index("symbol")["q"]["G"] == 5 and r.set_index("symbol")["q"]["A"] == 1

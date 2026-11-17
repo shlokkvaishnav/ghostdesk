@@ -103,3 +103,28 @@ the decision of an old entry — add a new entry that replaces it.
 - **Changes from validation:** training reward = the order's own cost (`reward="impact"`; the market move is
   noise of about 50 bps per hour against impact differences of about 1 bp), reward scaled by order size, and a
   smaller initial exploration noise (log std -1). The action is a log multiplier of the TWAP pace.
+
+### D15 — Live paper trading design (2026-11-17)
+- **Strategy:** the pre-registered portfolio, unchanged: `composite` of the latest paired report (tradeable at or
+  before the formation close, at most 120 days old), quintiles across the current S&P 500 (Wikipedia list, with
+  its CIK column), long Q5 and short Q1, equal weights, rebalanced on the first session of each month. Each leg is
+  50% of account equity (gross 100%). Whole shares only (Alpaca does not allow fractional short sales), so small
+  weights differ from target; the site shows target and actual. One exception: the first run, on an empty account,
+  enters at once (formation = the last close), so that the forward test starts without a wait of two weeks.
+- **Execution:** VWAP, the best schedule in the execution study (Step 4). Child market orders in the 5-minute
+  buckets of the first hour, sized by the pooled first-hour volume profile of the Step 4 minute bars
+  (`live.portfolio.FIRST_HOUR_PROFILE`). A job that starts late uses the buckets that are left; after the first
+  hour it uses 6 buckets of 5 minutes. A long-to-short flip is closed in the first bucket and opened over the rest
+  (Alpaca rejects an order that crosses zero).
+- **State:** Alpaca is the record of trades (orders, positions, portfolio history). Report scores are kept in an
+  Actions cache (`data/live/scores.parquet`); if the cache is lost, the job computes the scores again from SEC
+  (about 500 report pairs). Each run is idempotent: it trades only the difference between target and position, and
+  a difference below 20% of the per-stock target is not traded.
+- **Schedule (UTC):** `score+site` at 21:40 each weekday (after the close). `trade` at 13:40, 14:40, 15:40 on days
+  1-7 and on manual start; the script trades only on the first session of a month (or the first run), and only
+  between the open and 150 minutes after it, so the two time zones of New York (EST, EDT) need no change.
+- **Silent:** every step has `continue-on-error`; the result and any error go to `live.json`, shown on the site.
+- **Site:** one workflow builds the whole Pages site: the product page at the root (from `live.json`) and the
+  mkdocs pages under `/docs/`. The old `docs.yml` is removed, so two workflows never overwrite each other.
+- **Rejected:** daily rebalancing (not the tested strategy); commits of state to git (rule: no commit from jobs);
+  waiting inside a job for the open (Actions minutes of a private repository).

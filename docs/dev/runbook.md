@@ -100,8 +100,10 @@ gh workflow run live.yml -f mode=flatten                              # close ev
 gh variable set TRADING --body on                                     # start again
 ```
 The page source is `web/` (product page; `web/data/live.json` comes from the job). The whole site (page at the root,
-mkdocs under `/docs/`) is built and deployed only by `live.yml`. A scheduled workflow stops after 60 days without a
-commit in the repository; the page shows the time of each mode's last run.
+mkdocs under `/docs/`) is built and deployed only by `live.yml`. The live job installs exact versions from
+`requirements-live.txt`. GitHub disables a scheduled workflow after 60 days without activity only in a public
+repository; if the repository becomes public, a commit every two months keeps it on. The page badge turns red
+when the data is over 30 hours old.
 
 ## 8. Checks before a commit
 ```bash

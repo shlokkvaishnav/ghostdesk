@@ -23,7 +23,7 @@ on:
         description: "score, trade, flatten or site"
         default: site
 permissions:
-  contents: read
+  contents: write  # upload the trade record to the private release `live-state` (no commit)
   pages: write
   id-token: write
 concurrency:
@@ -43,13 +43,18 @@ jobs:
         continue-on-error: true
       - id: mode
         continue-on-error: true
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_MODE: ${{ inputs.mode }}
         run: |
-          case "${{ github.event_name }}:${{ github.event.schedule }}" in
+          case "$EVENT:$SCHEDULE" in
             "schedule:40 21 * * 1-5") m=score ;;
             schedule:*) m=trade ;;
-            workflow_dispatch:*) m="${{ inputs.mode }}" ;;
+            workflow_dispatch:*) m="$INPUT_MODE" ;;
             *) m=site ;;
           esac
+          case "$m" in score|trade|flatten|site) ;; *) m=site ;; esac  # only known modes reach the shell
           echo "mode=$m" >> "$GITHUB_OUTPUT"
       - uses: actions/cache/restore@v4
         continue-on-error: true
@@ -57,6 +62,14 @@ jobs:
           path: data/live
           key: live-state-${{ github.run_id }}
           restore-keys: live-state-
+      - name: restore from the release if the cache is lost
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f data/live/scores.parquet ]; then
+            mkdir -p data/live && gh release download live-state --dir data/live --clobber && echo "restored from release"
+          fi
       - name: score
         if: steps.mode.outputs.mode == 'score'
         continue-on-error: true
@@ -86,6 +99,12 @@ jobs:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python -u scripts/live.py site
+      - name: keep the trade record in the release
+        if: always() && steps.mode.outputs.mode != 'site'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload live-state data/live/*.json data/live/*.parquet --clobber
       - uses: actions/cache/save@v4
         if: always() && steps.mode.outputs.mode != 'site'
         continue-on-error: true

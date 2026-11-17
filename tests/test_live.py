@@ -244,3 +244,17 @@ def test_broker_error_permanence_and_exact_paper_host():
     assert not BrokerError(429, "x").permanent and not BrokerError(503, "x").permanent
     with pytest.raises(ValueError):
         Broker(headers={}, base="https://paper-api.alpaca.markets.example.com/v2")
+
+
+def test_reconcile_target_against_positions():
+    from ghostdesk.live.site import reconcile
+    target = {"A": 10.0, "B": -5.0, "C": 2.5}
+    pos = [{"symbol": "A", "qty": "10", "current_price": "50"},     # on target
+           {"symbol": "B", "qty": "-3", "current_price": "100"},    # 200 off of a 500 target: not on target
+           {"symbol": "D", "qty": "1", "current_price": "20"}]      # not in the target
+    r = reconcile(target, pos, equity=1000)
+    assert r["stocks_target"] == 3 and r["on_target"] == 1
+    assert r["missing"] == ["C"] and r["extra"] == ["D"]
+    assert r["off_pct"] == pytest.approx((200 + 20) / 1000 * 100)  # C has no price: not counted in value
+    assert r["gross"]["long"] == {"target": 50.0, "actual": 52.0} and r["gross"]["short"] == {"target": 50.0, "actual": 30.0}
+    assert r["worst"][0]["symbol"] == "B"

@@ -40,14 +40,29 @@ IC by year: 2016 +0.038, 2017 +0.029, 2018 +0.018, 2019 -0.008, 2020 -0.012, 202
 
 ## Limits
 - Large companies only (S&P 500); the paper's effect was stronger in smaller companies.
-- Power: the test could detect, with 80% power, an effect of about 0.56% per month or more.
+- Power: the test could detect, with 80% power, an effect of about 0.56% per month or more (with the test
+  period's own volatility). The pre-registration planned 0.59% from the build-period volatility; both say the same.
 - No pre-2016 period with the same data (see decision D11), so decay is not measured directly.
 - Delisting returns are not known; a day without a price counts as 0.
 
 ## How much common backtest mistakes change the result (2016-2021)
-See the pitfall table in [status](dev/status.md): for this slow
-signal, look-ahead in timing changes little; the stock list (survivorship) and mixing 10-K with 10-Q ranks change
-the most.
+Each row turns off one guard of the data pipeline and runs the same study again (`composite`, equal-weighted
+long-short, gross, before the test period). Source: `scripts/pitfalls.py`.
+
+| Variant | Long-short %/month | t | IC | Change vs baseline (pp) | Stock-months |
+|---|---|---|---|---|---|
+| baseline | 0.19 | 0.79 | 0.017 | +0.00 | 34,522 |
+| filing_date | 0.20 | 0.85 | 0.017 | +0.01 | 34,541 |
+| period_end | 0.21 | 0.91 | 0.018 | +0.02 | 34,730 |
+| survivors | 0.06 | 0.25 | 0.012 | -0.13 | 26,482 |
+| vendor_errors | 0.21 | 0.86 | 0.017 | +0.02 | 34,522 |
+| mixed_forms | 0.27 | 1.27 | 0.017 | +0.08 | 34,522 |
+
+- **survivors:** today's stock list instead of the list on each date. This changes the result the most.
+- **mixed_forms:** 10-K and 10-Q ranked together instead of like with like.
+- **filing_date / period_end:** a report used from its filing date or its period end instead of the SEC acceptance
+  time. For a slow monthly signal this changes little.
+- **vendor_errors:** price errors of the data vendor kept.
 
 # Results: the execution study
 

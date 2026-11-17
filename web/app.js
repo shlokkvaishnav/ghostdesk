@@ -62,6 +62,12 @@ function curve() {
     const i = Math.round((k / (n - 1 || 1)) * (c.length - 1));
     el("text", { x: X(i), y: 252, "text-anchor": k === 0 ? "start" : k === n - 1 ? "end" : "middle", class: "tick" }, s).textContent = dfmt(c[i].day);
   }
+  const ex = D.expected_month;
+  if (ex) {  // trading days since the start -> months; 95% range of the cumulative return
+    const band = (i, z) => { const m = i / 21; return 100 * (ex.mean * m + z * 1.96 * ex.sd * Math.sqrt(m)); };
+    const up = c.map((_, i) => `${X(i)},${Y(Math.min(hi, band(i, 1)))}`), dn = c.map((_, i) => `${X(i)},${Y(Math.max(lo, band(i, -1)))}`).reverse();
+    el("path", { d: "M" + up.join(" L") + " L" + dn.join(" L") + " Z", fill: "var(--chip)", stroke: "var(--rule)" }, s);
+  }
   const path = (key) => c.map((p, i) => (p[key] == null ? null : `${X(i)},${Y(p[key])}`)).filter(Boolean).join(" L");
   el("path", { d: "M" + path("spy"), fill: "none", stroke: "var(--muted)", "stroke-width": 1.6, "stroke-dasharray": "4 4" }, s);
   el("path", { d: "M" + path("account"), fill: "none", stroke: "var(--accent)", "stroke-width": 2.4, "stroke-linejoin": "round" }, s);
@@ -147,6 +153,41 @@ function vwap() {
   });
 }
 
+function badge() {
+  const hours = (Date.now() - Date.parse(D.updated)) / 36e5;
+  const failed = Object.entries(D.health).filter(([, h]) => !h.ok).map(([k]) => k);
+  const b = $("badge");
+  if (failed.length) { b.className = "badge bad"; b.textContent = `Problem: ${failed.join(", ")}`; }
+  else if (hours > 30) { b.className = "badge bad"; b.textContent = `Data ${Math.round(hours)} h old`; }
+  else { b.className = "badge"; b.innerHTML = `<i class="dot" style="background:var(--ok);margin:0"></i>Live`; }
+}
+
+function recon() {
+  const r = D.recon, host = $("recon"), g = $("gross");
+  if (!r) {
+    const msg = `<p class="empty">The check starts after the first rebalance${D.next_rebalance ? " (" + dfmt(D.next_rebalance) + ")" : ""}.</p>`;
+    host.innerHTML = msg; g.innerHTML = msg; return;
+  }
+  const last = D.rebalances[D.rebalances.length - 1] || {};
+  host.innerHTML = `<div class="big">${r.on_target}<span style="font-size:1.2rem;color:var(--muted)"> / ${r.stocks_target}</span></div>
+    <span style="color:var(--muted);font-size:.9rem">stocks within 20% of their target value</span>
+    <div class="kv"><span>Value off target</span><span>${r.off_pct.toFixed(1)}% of the account</span>
+    <span>Planned but not held</span><span>${r.missing.length}</span><span>Held but not planned</span><span>${r.extra.length}</span>
+    <span>Orders rejected (last rebalance)</span><span>${last.rejected ?? "—"}</span>
+    <span>Fill cost vs arrival price</span><span>${last.cost_bps == null ? "—" : last.cost_bps.toFixed(1) + " bps"}</span></div>
+    <p class="tip" style="position:static;opacity:1;background:none;color:var(--muted);padding:0;margin-top:.8rem">Fill costs are simulated by Alpaca.</p>`;
+  const rows = [["Long", r.gross.long], ["Short", r.gross.short]];
+  const [s, w] = svg(g, 150), mx = Math.max(100, ...rows.flatMap(([, v]) => [v.target, v.actual])), lab = 56;
+  rows.forEach(([name, v], i) => {
+    const y = 18 + i * 62, W = (x) => (x / mx) * (w - lab - 50);
+    el("text", { x: 0, y: y + 22, class: "tick", style: "font-size:13px;fill:var(--ink)" }, s).textContent = name;
+    el("rect", { x: lab, y, width: W(v.target), height: 14, rx: 4, fill: "var(--chip)", stroke: "var(--rule)" }, s);
+    el("rect", { x: lab, y: y + 18, width: W(v.actual), height: 14, rx: 4, fill: i ? "var(--cool)" : "var(--accent)" }, s);
+    el("text", { x: lab + W(v.target) + 6, y: y + 11, class: "tick" }, s).textContent = `plan ${v.target.toFixed(0)}%`;
+    el("text", { x: lab + W(v.actual) + 6, y: y + 29, class: "tick" }, s).textContent = `held ${v.actual.toFixed(0)}%`;
+  });
+}
+
 function health() {
   const names = { score: "Reports read", trade: "Trading", site: "Page" };
   $("health").innerHTML = Object.entries(D.health).map(([k, h]) =>
@@ -154,7 +195,7 @@ function health() {
     + `<span>Updated ${new Date(D.updated).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>`;
 }
 
-function draw() { if (!D) return; stats(); curve(); strip(); sectors(); feed(); vwap(); health(); }
+function draw() { if (!D) return; badge(); stats(); curve(); strip(); sectors(); feed(); recon(); vwap(); health(); }
 
 fetch("data/live.json", { cache: "no-cache" }).then((r) => r.json()).then((d) => { D = d; draw(); })
   .catch(() => { $("stats").innerHTML = `<div class="stat"><b>—</b><span>Live data is not available now.</span></div>`; });

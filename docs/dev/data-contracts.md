@@ -172,4 +172,5 @@ Producer: `scripts/live.py`. `members.parquet` (`symbol, cik, name, sector`), `i
 today's members, as `filings_index`), `scores.parquet` (`cik, accession, prev_accession, form, report_date,
 accepted_utc, error` and the `sim_` features of `signal.features.pair_features`; one row per pair, never recomputed),
 `rebalance_<YYYYMMDD>.json` (plan, signal, arrival prices, orders and fills), `health.json` (per mode: `at, ok,
-message`). Output for the page: `site-data/live.json` (gitignored; built by `live.site.build`).
+message`). The same files are kept in the private release `live-state` (uploaded after each score or trade
+run, restored when the cache is lost). Output for the page: `site-data/live.json` (gitignored; built by `live.site.build`).

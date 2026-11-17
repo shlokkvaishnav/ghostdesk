@@ -32,13 +32,18 @@
   .health { display: flex; gap: 1rem; flex-wrap: wrap; }
   .q1 { fill: var(--cool); } .q5 { fill: var(--accent); } .qm { fill: var(--muted); opacity: .45; }
   .hl { stroke: var(--ink); stroke-width: 2; }
+  .badge { font: 600 .78rem/1 var(--sans); padding: .38rem .7rem; border-radius: 99px; background: var(--chip); color: var(--muted); display: inline-flex; align-items: center; gap: .4rem; }
+  .badge.bad { background: var(--accent-soft); color: var(--accent); }
+  .big { font: 600 2.6rem/1 var(--serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: .45rem 1rem; font-size: .92rem; margin-top: 1rem; }
+  .kv span:nth-child(even) { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <nav class="top">
     <span class="brand">ghostdesk</span>
-    <a href="docs/">Method &amp; results</a>
+    <span style="display:flex;gap:1.2rem;align-items:center"><span class="badge" id="badge"></span><a href="docs/">Method &amp; results</a></span>
   </nav>
 
   <header class="hero">
@@ -50,8 +55,8 @@
 
   <section>
     <h2>The desk against the market</h2>
-    <p class="cap">Return since the start of the account, and the S&amp;P 500 (SPY) over the same days.</p>
-    <div class="panel"><div class="legend"><span><i style="background:var(--accent)"></i>ghostdesk</span><span><i style="background:var(--muted)"></i>SPY</span></div><div id="curve"></div></div>
+    <p class="cap">Return since the start, and SPY over the same days. The band is what our 2016–2025 backtest leads us to expect: close to zero, with noise. In the pre-registered test the signal was not found, so this is a live test of the system, not a promise of profit.</p>
+    <div class="panel"><div class="legend"><span><i style="background:var(--accent)"></i>ghostdesk</span><span><i style="background:var(--muted)"></i>SPY</span><span><i style="background:var(--chip);border:1px solid var(--rule)"></i>Expected range (95%)</span></div><div id="curve"></div></div>
   </section>
 
   <section>
@@ -78,6 +83,15 @@
         <p class="cap">The newest filings the desk has read.</p>
         <div class="panel"><ul class="feed" id="feed"></ul></div>
       </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Is the book on target?</h2>
+    <p class="cap">After each rebalance the desk checks its positions against the plan, at today's prices.</p>
+    <div class="grid g2">
+      <div class="panel" id="recon"></div>
+      <div class="panel" id="gross"></div>
     </div>
   </section>
 

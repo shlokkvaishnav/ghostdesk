@@ -13,6 +13,37 @@ from ..signal.study import FULL
 from .portfolio import FIRST_HOUR_PROFILE
 from .signal import composite, quintile
 
+# What the backtest leads us to expect for the account (2016-2025 pooled, `composite` long-short after 5 bps, one leg
+# = 0.9 of equity as in D15): mean and standard deviation of the monthly return. Shown as a band behind the live
+# curve; with a mean near 0 the band says "expect noise", which is the honest prior for a signal not detected.
+EXPECTED_MONTH = {"mean": 0.9 * 0.001338, "sd": 0.9 * 0.01797, "source": "pooled 2016-2025 backtest, after 5 bps"}
+
+
+def reconcile(target: dict[str, float], positions: list[dict], equity: float) -> dict:
+    """Target (latest rebalance log) against the positions now, at today's prices. A stock is on target when the
+    value off target is at most 20% of its target value. `off_pct`: sum of |value off target| in % of equity."""
+    held = {p["symbol"]: (float(p["qty"]), float(p.get("current_price") or 0)) for p in positions}
+    rows = []
+    for s in sorted(set(target) | set(held)):
+        t = float(target.get(s, 0.0))
+        q, px = held.get(s, (0.0, 0.0))
+        rows.append({"symbol": s, "target": t, "actual": q, "price": px, "off_value": round((q - t) * px, 2)})
+    priced = [r for r in rows if r["price"] > 0]
+
+    def gross(sign: int, key: str) -> float:
+        return round(sum(abs(r[key]) * r["price"] for r in priced if sign * r[key] > 0) / equity * 100, 2)
+
+    return {"stocks_target": sum(1 for r in rows if r["target"]),
+            "on_target": sum(1 for r in priced if r["target"]
+                             and abs(r["off_value"]) <= 0.2 * abs(r["target"]) * r["price"]),
+            "missing": sorted(r["symbol"] for r in rows if r["target"] and not r["actual"]),
+            "extra": sorted(r["symbol"] for r in rows if r["actual"] and not r["target"]),
+            "off_pct": round(sum(abs(r["off_value"]) for r in priced) / equity * 100, 2),
+            "gross": {side: {"target": gross(sign, "target"), "actual": gross(sign, "actual")}
+                      for side, sign in (("long", 1), ("short", -1))},
+            "worst": [{k: r[k] for k in ("symbol", "target", "actual", "off_value")}
+                      for r in sorted(priced, key=lambda r: -abs(r["off_value"]))[:5]]}
+
 
 def equity_curve(history: pd.DataFrame, spy: pd.DataFrame) -> list[dict]:
     """day, account return and SPY return (both from the first day with equity), in %."""
@@ -101,7 +132,14 @@ def build(account: dict, positions: list[dict], history: pd.DataFrame, spy: pd.D
             "reports": reports, "universe": universe, "profile": list(rebalances[-1].get("profile", FIRST_HOUR_PROFILE)) if rebalances
             else list(FIRST_HOUR_PROFILE),
             "buckets": bucket_shares(rebalances[-1]) if rebalances else [],
-            "rebalances": [rebalance_summary(r) for r in rebalances], "health": health}
+            "rebalances": [rebalance_summary(r) for r in rebalances], "health": health,
+            "expected_month": EXPECTED_MONTH,
+            "recon": reconcile(_latest_target(rebalances), positions, eq) if rebalances and eq else None}
+
+
+def _latest_target(rebalances: list[dict]) -> dict[str, float]:
+    """The target of the latest rebalance day (a same-day rerun log carries the same target)."""
+    return {s: float(q) for s, q in rebalances[-1].get("target", {}).items()}
 
 
 def bucket_shares(log: dict) -> list[dict]:

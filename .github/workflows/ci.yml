@@ -11,5 +11,6 @@ jobs:
           cache: pip
       - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -e ".[dev]"
-      - run: ruff check src tests
+      - run: ruff check src tests scripts
       - run: pytest -q
+      - run: mkdocs build --strict -q  # the same checks as `make check`

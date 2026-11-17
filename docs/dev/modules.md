@@ -219,6 +219,8 @@ Alpaca's message. `SNAPSHOTS` is the market-data snapshot URL.
 |---|---|
 | `equity_curve(history, spy)` | `day, account, spy` in % from the first day. |
 | `report_scores(scores, members, at, days=120)` | Latest scored pair per member with `composite` and `q`. |
+| `EXPECTED_MONTH` | Backtest mean and SD of the monthly account return (legs 0.9); the band behind the live curve. |
+| `reconcile(target, positions, equity)` | Target vs positions at today's prices: on target (within 20%), missing, extra, value off target in % of equity, gross per side, the 5 worst. |
 | `rebalance_summary(log)` | Orders, fills, rejects, cost against the arrival price in bps (positive = paid more). |
 | `bucket_shares(log)` | Share of traded shares per bucket of a rebalance. |
 | `build(account, positions, history, spy, rebalances, scores, members, health, at, next_rebalance)` | The `live.json` dict. |

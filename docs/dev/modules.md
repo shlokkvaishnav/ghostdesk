@@ -208,7 +208,8 @@ Alpaca's message. `SNAPSHOTS` is the market-data snapshot URL.
 | `unit_of(symbol, current, target, fractional)` | Order unit: 0.0001 for a fractionable long side, else 1. |
 | `per_name_value(sides, equity, leg=1.0)` | Value of one stock's target in the larger leg. |
 | `trades(target, current, prices, per_name, min_frac=0.2)` | symbol -> (current, target); closes and flips always, other changes only if worth >= 20% of a target. |
-| `buckets_left(minutes_since_open, after_hour=6)` | (start minute, weight) of the buckets not started; weights sum to 1. |
+| `learned_profile(minutes, min_days=200)` | (profile, stock-days): first-hour 5-minute volume shares from minute bars; `FIRST_HOUR_PROFILE` with too few days (D16). |
+| `buckets_left(minutes_since_open, after_hour=6, profile=FIRST_HOUR_PROFILE)` | (start minute, weight) of the buckets not started; weights sum to 1. |
 | `split(qty, weights, unit=1.0)` | Parts in multiples of `unit` with an exact sum. |
 | `child_orders(current, target, weights, unit=1.0)` | Signed orders per bucket; no order crosses zero (a flip closes in bucket 0; a new short side is whole shares). |
 | `side_of(qty)` | `buy` or `sell`. |

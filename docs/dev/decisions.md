@@ -134,3 +134,14 @@ the decision of an old entry — add a new entry that replaces it.
   mkdocs pages under `/docs/`. The old `docs.yml` is removed, so two workflows never overwrite each other.
 - **Rejected:** daily rebalancing (not the tested strategy); commits of state to git (rule: no commit from jobs);
   waiting inside a job for the open (Actions minutes of a private repository).
+
+### D16 — The only adaptive part: the VWAP volume profile (2026-11-17)
+- **Context:** the owner asked that the desk "learn from its trades". The signal is pre-registered; changing it
+  from live results means tuning on about 12 noisy monthly results a year. Paper fills are simulated by Alpaca,
+  so learning from the desk's own fills would learn the simulator, not the market.
+- **Decision:** the signal and portfolio rules stay fixed. Before each rebalance the desk learns the first-hour
+  volume profile (12 buckets of 5 minutes) from the last 20 sessions of real SIP minute bars of its 30 largest
+  trades (`live.portfolio.learned_profile`), and uses it for the VWAP child orders. With fewer than 200
+  stock-days, or if the bars cannot be read, it uses the Step 4 profile. The profile is kept in the rebalance log
+  and shown on the page.
+- **Rejected:** re-training PPO on live fills (simulated fills; PPO lost to VWAP in Step 4); changing the signal.

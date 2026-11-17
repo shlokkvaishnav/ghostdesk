@@ -98,7 +98,8 @@ def build(account: dict, positions: list[dict], history: pd.DataFrame, spy: pd.D
             "curve": equity_curve(history, spy), "positions": sorted(pos, key=lambda p: -abs(p["value"])),
             "sectors": [{"sector": k, **{x: round(v / eq * 100, 2) if eq else 0 for x, v in d.items()}}
                         for k, d in sorted(sectors.items())],
-            "reports": reports, "universe": universe, "profile": list(FIRST_HOUR_PROFILE),
+            "reports": reports, "universe": universe, "profile": list(rebalances[-1].get("profile", FIRST_HOUR_PROFILE)) if rebalances
+            else list(FIRST_HOUR_PROFILE),
             "buckets": bucket_shares(rebalances[-1]) if rebalances else [],
             "rebalances": [rebalance_summary(r) for r in rebalances], "health": health}
 

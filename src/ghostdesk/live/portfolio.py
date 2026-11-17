@@ -71,12 +71,35 @@ def trades(target: dict[str, float], current: dict[str, float], prices: pd.Serie
     return out
 
 
-def buckets_left(minutes_since_open: float, after_hour: int = 6) -> list[tuple[int, float]]:
+def learned_profile(minutes: pd.DataFrame, min_days: int = 200) -> tuple[tuple[float, ...], int]:
+    """The first-hour 5-minute volume profile from recent minute bars (`symbol, t` (UTC), `v`), as the mean over
+    stock-days of each bucket's share of that stock-day's first-hour volume. Decision D16: this is the only part
+    of the desk that adapts; it learns from market data, never from the desk's own (simulated) fills.
+    Returns (profile, stock-days used); `FIRST_HOUR_PROFILE` when fewer than `min_days` stock-days."""
+    if minutes.empty:
+        return FIRST_HOUR_PROFILE, 0
+    m = minutes.copy()
+    t = pd.to_datetime(m["t"], utc=True).dt.tz_convert("America/New_York")
+    m["day"] = t.dt.normalize()
+    m["minute"] = (t - m["day"]).dt.total_seconds() / 60 - 570  # minutes after 09:30
+    m = m[(m["minute"] >= 0) & (m["minute"] < BUCKET_MIN * len(FIRST_HOUR_PROFILE))]
+    m["b"] = (m["minute"] // BUCKET_MIN).astype(int)
+    g = m.groupby(["symbol", "day", "b"])["v"].sum().unstack(fill_value=0.0)
+    g = g.reindex(columns=range(len(FIRST_HOUR_PROFILE)), fill_value=0.0)
+    g = g[g.sum(axis=1) > 0]
+    if len(g) < min_days:
+        return FIRST_HOUR_PROFILE, len(g)
+    w = g.div(g.sum(axis=1), axis=0).mean().to_numpy()
+    return tuple(round(float(x), 4) for x in w / w.sum()), len(g)
+
+
+def buckets_left(minutes_since_open: float, after_hour: int = 6,
+                 profile=FIRST_HOUR_PROFILE) -> list[tuple[int, float]]:
     """(bucket start in minutes after the open, weight) for the first-hour buckets that have not started; weights
     sum to 1. After the first hour: `after_hour` equal buckets from the next 5-minute mark."""
     k = int(np.ceil(max(minutes_since_open, 0) / BUCKET_MIN))
-    if k < len(FIRST_HOUR_PROFILE):
-        w = np.array(FIRST_HOUR_PROFILE[k:])
+    if k < len(profile):
+        w = np.array(profile[k:])
         return [(BUCKET_MIN * (k + i), float(x)) for i, x in enumerate(w / w.sum())]
     return [(BUCKET_MIN * (k + i), 1.0 / after_hour) for i in range(after_hour)]
 

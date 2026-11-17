@@ -206,3 +206,20 @@ def test_close_all_cancels_orders_and_closes_positions():
     method, url, kw = s.calls[0]
     assert method == "DELETE" and url.endswith("/positions") and kw["params"] == {"cancel_orders": "true"}
     assert out == [{"symbol": "A", "status": 200}]
+
+
+def test_learned_profile_from_minute_bars():
+    from ghostdesk.live.portfolio import learned_profile
+    rows = []
+    for day in pd.bdate_range("2026-10-01", periods=5):  # EDT: 09:30 New York = 13:30 UTC
+        for sym in ("A", "B"):
+            for minute in range(-5, 70):  # pre-market and after the first hour must be ignored
+                v = 200.0 if minute < 5 else 100.0
+                rows.append((sym, day + pd.Timedelta(hours=13, minutes=30 + minute), v))
+    bars = pd.DataFrame(rows, columns=["symbol", "t", "v"])
+    bars["t"] = bars["t"].dt.tz_localize("UTC")
+    prof, n = learned_profile(bars, min_days=10)
+    assert n == 10 and prof[0] == pytest.approx(2 / 13, abs=1e-4) and prof[1] == pytest.approx(1 / 13, abs=1e-4)
+    assert sum(prof) == pytest.approx(1, abs=1e-3)
+    assert learned_profile(bars, min_days=11) == (FIRST_HOUR_PROFILE, 10)  # too few stock-days: fixed profile
+    assert buckets_left(0, profile=prof)[0][1] == pytest.approx(prof[0] / sum(prof))

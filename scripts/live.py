@@ -33,6 +33,7 @@ from ghostdesk.live.broker import Broker, BrokerError
 from ghostdesk.live.portfolio import (
     buckets_left,
     child_orders,
+    learned_profile,
     per_name_value,
     side_of,
     target_shares,
@@ -207,12 +208,14 @@ def trade() -> None:
     plan = trades(target, current, prices, per)
     gross = {k: sum(abs(q) * float(prices.get(s, 0)) for s, q in target.items() if np.sign(q) == sign) / equity
              for k, sign in (("long", 1), ("short", -1))}
-    weights = buckets_left(minutes)
+    profile, profile_days = _profile(sorted(plan, key=lambda x: -abs(plan[x][1] - plan[x][0]) * prices.get(x, 0))[:30],
+                                     cal, today)
+    weights = buckets_left(minutes, profile=profile)
     log = {"date": f"{today:%Y-%m-%d}", "formation_close": prev_close.isoformat(), "equity": equity,
            "first_run": bool(first_run), "stocks_with_signal": len(one), "missing_scores": missing,
            "long": int((sides == 1).sum()), "short": int((sides == -1).sum()),
            "not_shortable": [s for s, ok in shortable.items() if not ok], "start_minute": round(minutes, 1),
-           "buckets": [b for b, _ in weights], "arrival": {s: float(prices[s]) for s in plan if s in prices},
+           "buckets": [b for b, _ in weights], "profile": list(profile), "profile_stock_days": profile_days, "arrival": {s: float(prices[s]) for s in plan if s in prices},
            "target": {s: float(q) for s, q in target.items()}, "leg": LEG,
            "target_gross": {k: round(v, 4) for k, v in gross.items()},
            "too_expensive": too_expensive(sides, target, prices),
@@ -263,6 +266,21 @@ def _dollar_volume(symbols: list[str]) -> pd.Series:
         return pd.Series(dtype=float)
     bars["dv"] = bars["c"] * bars["v"]
     return bars.sort_values("t").groupby("symbol")["dv"].apply(lambda s: s.tail(63).mean())
+
+
+def _profile(symbols: list[str], cal: pd.DataFrame, today: pd.Timestamp) -> tuple[tuple[float, ...], int]:
+    """D16: the volume profile of the last 20 sessions' first hour for the (up to 30) largest trades; the Step 4
+    profile if the minute bars cannot be read."""
+    past = cal[cal["date"] < today]
+    if not symbols or len(past) < 20:
+        return learned_profile(pd.DataFrame())
+    start, end = past["open_utc"].iloc[-20], past["close_utc"].iloc[-1]
+    try:
+        bars = AlpacaClient().bars(symbols, start.isoformat(), end.isoformat(), timeframe="1Min", adjustment="raw")
+    except Exception as e:  # noqa: BLE001 - execution falls back to the fixed profile
+        print(f"profile: minute bars failed ({type(e).__name__}); fixed profile", flush=True)
+        return learned_profile(pd.DataFrame())
+    return learned_profile(bars)
 
 
 def _asset(broker: Broker, symbol: str) -> dict:

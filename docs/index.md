@@ -23,8 +23,10 @@ A quant trading desk does three jobs. Ghostdesk will do all three by itself:
   [results](results.md).
 - **Backtest mistakes, measured:** for this signal, timing look-ahead changes little; the stock list and mixing
   annual with quarterly reports change the most.
-- **Next:** the execution study (does an RL agent learn real intraday patterns, and how much money can the strategy
-  trade), then the live job and the web page.
+- **Execution study: done.** On real 2024 minute bars, the PPO agent did **not** trade more cheaply than VWAP at
+  any order size; at 5% of daily volume it cost about 1 bp more. The strategy can trade up to about $7.2 billion
+  before costs use up its gross return. Details: [results](results.md#results-the-execution-study).
+- **Next:** the live job and the web page.
 
 ## Run it
 ```bash

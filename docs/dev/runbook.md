@@ -83,6 +83,7 @@ PYTHONPATH=src .venv/bin/python -u scripts/load_minutes.py        # 20 stocks, 2
 PYTHONPATH=src .venv/bin/python -u scripts/execution_study.py --eval val --steps 1000000   # design work, about 4 min
 PYTHONPATH=src .venv/bin/python -u scripts/execution_study.py --eval test --steps 600000 --seed 0   # final, x3 seeds
 PYTHONPATH=src .venv/bin/python -u scripts/capacity.py            # needs the pooled signal study
+PYTHONPATH=src .venv/bin/python -u scripts/execution_summary.py   # table of the 3 test seeds; seconds
 ```
 Design changes use `--eval val` only (train 2023-01..09, evaluate 2023-10..12). `--eval test` (2024) is the final run.
 

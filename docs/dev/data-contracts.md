@@ -151,6 +151,11 @@ Key: `(symbol, t)`.
 Producers: `scripts/execution_study.py`, `scripts/capacity.py`. Mean costs (bps) per group, size and strategy;
 paired differences against the best fixed schedule with day-clustered 95% intervals; cost curve and break-even.
 
+### data/execution_summary.json
+Producer: `scripts/execution_summary.py` (from the three `execution_results_test_seed<n>.json`). Key `rows`: one
+entry per group, size and agent with `best_fixed`, `diff_bps_per_seed`, `diff_bps_mean`, `ci95_per_seed`,
+`seeds_worse`, `seeds_better`. Invariant: the best fixed schedule is the same in all seeds.
+
 ### Summary files
 `universe_coverage.json`, `filings_index_summary.json`, `features_summary.json`, `prices_coverage.json`: counts
 written by the producers; [docs/data.md](../data.md) quotes them.

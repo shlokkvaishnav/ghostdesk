@@ -1,6 +1,6 @@
 # Status and next work
 
-Updated 2026-11-16. Steps follow [docs/plan.md](../plan.md).
+Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
 
 ## Done
 | Step | Result | Evidence |
@@ -22,6 +22,14 @@ Updated 2026-11-16. Steps follow [docs/plan.md](../plan.md).
 | Check period 2020-2021 | done (after the pre-registration commit `e4d66bb`): `composite` long-short -0.35%/month (t -0.65, 95% CI [-1.40%, 0.70%]); IC 0.012 (t 0.66); Fama-MacBeth t 1.41. Uninformative (high 2020 volatility). Build IC by year falls from 0.038 (2016) to -0.008 (2019). |
 | Test period 2022-2025 | **done once** (code `cce3d21`): H1 +0.09%/month after 5 bps (t 0.40, 95% CI [-0.36%, +0.54%]); not detected. See [results](../results.md). |
 
+## Step 4 — the execution study (done)
+| Item | State |
+|---|---|
+| Replay simulator `execution/replay.py`, capacity `execution/capacity.py` | done, tested |
+| Validation (2023-10..12) and design changes | done (decision D14) |
+| Test 2024, 3 seeds | **done**: PPO is not cheaper than VWAP in any cell; at 5% of volume it costs about 1 bp more (all seeds significant). Price-blind PPO is the same. See [results](../results.md#results-the-execution-study). |
+| Capacity | break-even fund about $7.2B at the pooled gross return |
+
 ## Decisions on the review (owner: "do what is better")
 - Pre-2016 comparison: not with free data (D11). RL study reframed (D12). External timestamp done (D13).
 
@@ -41,9 +49,7 @@ Reading: for this slow signal, timing look-ahead changes little (even a report "
 list (survivorship) and mixing 10-K with 10-Q ranks change the most.
 
 ## Later
-- Step 4 — execution study: calibrate `execution/impact.py` per stock (daily volatility and volume from
-  `prices_daily.parquet`, spread from `data/spread.py`); PPO vs TWAP/VWAP/Almgren-Chriss at 0.1%, 1%, 5% of daily
-  volume; main chart: RL gain by order size. Needs minute bars (Alpaca, a sample of stocks).
+
 - Step 4b — optional world model behind the gates of decision D2.
 - Step 5 — live job and site: daily GitHub Actions job, Alpaca paper orders over 30-60 min after the open, site from
   JSON with `deploy-pages`, no commit, no failure emails.

@@ -90,9 +90,16 @@ def score() -> None:
         try:
             frames.append(index_for(sec, int(cik), since=since))
         except Exception as e:  # noqa: BLE001 - one company's error does not stop the run
-            failed.append(f"{cik}: {type(e).__name__}")
-    index = pair_previous(pd.concat(frames, ignore_index=True))
-    index.to_parquet(LIVE / "index.parquet", index=False)
+            failed.append(int(cik))
+            print(f"report list failed for CIK {cik}: {type(e).__name__}", flush=True)
+    fresh = pd.concat(frames, ignore_index=True)
+    old_path = LIVE / "index.parquet"
+    if failed and old_path.exists():  # a company whose list failed keeps its last rows (pairs are found again below)
+        old = pd.read_parquet(old_path)
+        keep = old[old["cik"].isin(failed)][fresh.columns.intersection(old.columns)]
+        fresh = pd.concat([fresh, keep], ignore_index=True)
+    index = pair_previous(fresh)
+    index.to_parquet(old_path, index=False)
     past = pd.DatetimeIndex(cal["date"])
     last_close = cal.loc[cal["close_utc"] <= now(), "close_utc"].iloc[-1]
     latest = pd.concat([latest_pairs(index, past, now() + pd.Timedelta(days=1)),  # tradeable by the next session

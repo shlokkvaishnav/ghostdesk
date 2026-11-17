@@ -12,6 +12,7 @@ markdown_extensions:
   - pymdownx.superfences
 nav:
   - Overview: index.md
+  - Engineering: engineering.md
   - Plan: plan.md
   - Data: data.md
   - Pre-registration: preregistration.md

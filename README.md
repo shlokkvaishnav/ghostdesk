@@ -13,7 +13,14 @@ A quant trading desk does three jobs. Ghostdesk does all three by itself:
 2. **Execution.** It splits each trade into small orders over the first hour. A reinforcement-learning agent (PPO)
    was tested against standard methods (TWAP, VWAP, Almgren-Chriss) on real minute bars. It did not beat VWAP,
    so the live desk uses VWAP.
-3. **Live.** Each US trading day, one job trades with fake money (Alpaca paper trading) and updates a web page.
+3. **Live.** Each month, one job trades with fake money (Alpaca paper trading) and updates a web page.
+
+## How it is built
+A program with no person at the desk must be safe when things go wrong. Each guarantee has a test: no look-ahead,
+no survivorship bias, paper money only, a rerun does no harm, a crashed run is finished by the next one, a missed
+day is caught up, orders never cross zero, the book is checked against the plan, and the live code picks the same
+stocks as the tested study. Every failure is shown on the page; none sends an email. Details:
+[engineering](docs/engineering.md).
 
 ## Status
 - **Data: done.** The S&P 500 as it was on each date (with the companies that left it), 47,719 reports with the

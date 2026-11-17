@@ -266,3 +266,14 @@ the decision of an old entry — add a new entry that replaces it.
   tests, and `docs/plan.md` (the first plan; the results, note and status pages now describe the project).
   They stay in git history.
 - **Kept:** every module that a study, the live job or a test of a used module needs.
+
+### D22 — Risk monitoring of the live book; no text-embedding study (2026-11-18)
+- **Risk (done):** each site run measures the book from one year of adjusted daily bars: expected yearly volatility
+  with a Ledoit-Wolf shrinkage covariance, beta to SPY, net and gross weight per sector, and the largest position
+  (`live/book_risk.py`, on the page). It describes the book and changes no weight: changing the portfolio would
+  change the pre-registered strategy. On 2026-11-17 the book had 7.3% expected yearly volatility, beta -0.16, and a
+  net long of 27% in Financials (similar reports from banks rank as "little change").
+- **Text embeddings (not done):** a fair test needs a language model trained only on text before each date (for
+  example ChronoBERT, one model per year) and hours of compute for about 30,000 long report pairs, off the owner's
+  Mac. The word-count version of the signal showed no effect in the test period and the test power is low, so one
+  more test would add little. It is left as future work.

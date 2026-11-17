@@ -39,6 +39,7 @@ why: [decisions](dev/decisions.md).
 | A missed day is seen and caught up | A due rebalance outside the window is an error; the next session catches up | `test_rebalance.py::test_missed_window_is_an_error_and_the_next_session_catches_up` |
 | Orders never cross zero | A flip closes the old side first; shorts are whole shares | `test_live.py::test_child_orders_reach_target_and_never_cross_zero` (11 cases x 4 schedules) |
 | Rate limits respected | At most 170 requests a minute (limit 200); 429 retried; only a real rejection stops a stock | `test_live.py::test_broker_paces_requests_and_keeps_retrying_rate_limits` |
+| The book's risk is known | Each day: expected volatility (Ledoit-Wolf covariance), beta to SPY, sector net weights | `test_book_risk.py` |
 | The book matches the plan | After each run: stocks within 20% of target, value off target, gross per side | `test_live.py::test_reconcile_target_against_positions` |
 | Docs match the code | Every module, public name and script is documented | `test_docs.py` |
 

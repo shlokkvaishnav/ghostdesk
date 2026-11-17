@@ -50,7 +50,8 @@ Updated 2026-11-18.
 | Pre-registration `docs/preregistration-ml.md` | committed `e41120d`, OpenTimestamps proof |
 | Test 2022-2025 | **done once**: M1 -0.11%/month after 5 bps (CI [-0.72, +0.49]); IC 0.000; not detected. See [results](../results.md#results-the-ml-study). |
 | Chart CNN (D19) | pre-registered `a09bfa2`; test **done once**: C1 -0.30%/month after 5 bps (CI [-0.77, +0.17]); IC -0.008; not detected. It mostly learned short-term reversal. |
-| Next | time-safe text embeddings, risk engineering (same harness) |
+| Book risk (D22) | done: volatility, beta, sector exposure of the live book on the page |
+| Text embeddings | not done (D22): needs year-by-year language models and hours of compute; low expected value |
 
 ## Decisions on the review (owner: "do what is better")
 - Pre-2016 comparison: not with free data (D11). RL study reframed (D12). External timestamp done (D13).

@@ -95,7 +95,7 @@ def rebalance_summary(log: dict) -> dict:
 
 def build(account: dict, positions: list[dict], history: pd.DataFrame, spy: pd.DataFrame, rebalances: list[dict],
           scores: pd.DataFrame | None, members: pd.DataFrame | None, health: dict, at: pd.Timestamp,
-          next_rebalance: str | None = None) -> dict:
+          next_rebalance: str | None = None, risk: dict | None = None) -> dict:
     names = {} if members is None else members.drop_duplicates("symbol").set_index("symbol")[["name", "sector"]]
     sig = {}
     if rebalances:
@@ -134,7 +134,8 @@ def build(account: dict, positions: list[dict], history: pd.DataFrame, spy: pd.D
             "buckets": bucket_shares(rebalances[-1]) if rebalances else [],
             "rebalances": [rebalance_summary(r) for r in rebalances], "health": health,
             "expected_month": EXPECTED_MONTH,
-            "recon": reconcile(_latest_target(rebalances), positions, eq) if rebalances and eq else None}
+            "recon": reconcile(_latest_target(rebalances), positions, eq) if rebalances and eq else None,
+            "risk": risk}
 
 
 def _latest_target(rebalances: list[dict]) -> dict[str, float]:

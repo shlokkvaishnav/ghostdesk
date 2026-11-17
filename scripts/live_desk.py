@@ -192,12 +192,30 @@ def site() -> None:
     m = pd.read_parquet(LIVE / "members.parquet") if (LIVE / "members.parquet").exists() else None
     h = json.loads((LIVE / "health.json").read_text()) if (LIVE / "health.json").exists() else {}
     positions = broker.position_rows()
+    risk = _risk(positions, float(broker.account().get("equity") or 0), m) if positions else None
     data = build(account=broker.account(), positions=positions, history=hist, spy=spy,
                  rebalances=rebal, scores=scores, members=m, health=h, at=now(),
-                 next_rebalance=None if positions else _next_rebalance(broker))
+                 next_rebalance=None if positions else _next_rebalance(broker), risk=risk)
     SITE_DATA.mkdir(exist_ok=True)
     (SITE_DATA / "live.json").write_text(json.dumps(data, separators=(",", ":"), default=str))
     health("site", True, f"live.json: {len(data['positions'])} positions, {len(data['reports'])} new reports")
+
+
+def _risk(positions: list[dict], equity: float, members: pd.DataFrame | None) -> dict | None:
+    """Book risk from one year of adjusted daily bars of the held stocks and SPY (`live.book_risk`)."""
+    from ghostdesk.live.book_risk import book_risk
+
+    values = {p["symbol"]: float(p["market_value"]) for p in positions}
+    end = now() - pd.Timedelta(minutes=20)
+    bars = AlpacaClient().bars([*values, "SPY"], f"{end - pd.Timedelta(days=380):%Y-%m-%d}", end.isoformat(),
+                               adjustment="all")
+    if bars.empty or not equity:
+        return None
+    bars["day"] = bars["t"].dt.tz_convert("America/New_York").dt.normalize().dt.tz_localize(None)
+    ret = bars.pivot_table(index="day", columns="symbol", values="c").sort_index().pct_change(fill_method=None)
+    sectors = {} if members is None else members.drop_duplicates("symbol").set_index("symbol")["sector"].to_dict()
+    return book_risk(values, equity, ret.drop(columns="SPY", errors="ignore"), ret.get("SPY", pd.Series(dtype=float)),
+                     sectors)
 
 
 def _next_rebalance(broker: Broker) -> str | None:

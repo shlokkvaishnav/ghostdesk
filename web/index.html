@@ -96,6 +96,15 @@
   </section>
 
   <section>
+    <h2>How much risk does the book carry?</h2>
+    <p class="cap">Measured each day from one year of daily returns of the stocks held. It describes the book; the rules that choose the stocks do not change.</p>
+    <div class="grid g2">
+      <div class="panel" id="risk"></div>
+      <div class="panel" id="risksec"></div>
+    </div>
+  </section>
+
+  <section>
     <h2>How the orders go out</h2>
     <p class="cap">Each rebalance is split into small orders over the first hour, in step with the market's usual volume. In our tests this beat a trained RL agent.</p>
     <div class="panel"><div class="legend"><span><i style="background:var(--muted)"></i>Usual volume, every 5 minutes</span><span><i style="background:var(--accent)"></i>Last rebalance</span></div><div id="vwap"></div></div>

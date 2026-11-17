@@ -212,7 +212,7 @@ Alpaca's message. `SNAPSHOTS` is the market-data snapshot URL.
 | `reconcile(target, positions, equity)` | Target vs positions at today's prices: on target (within 20%), missing, extra, value off target in % of equity, gross per side, the 5 worst. |
 | `rebalance_summary(log)` | Orders, fills, rejects, cost against the arrival price in bps (positive = paid more). |
 | `bucket_shares(log)` | Share of traded shares per bucket of a rebalance. |
-| `build(account, positions, history, spy, rebalances, scores, members, health, at, next_rebalance)` | The `live.json` dict. |
+| `build(account, positions, history, spy, rebalances, scores, members, health, at, next_rebalance, risk)` | The `live.json` dict (`risk` from `live.book_risk`). |
 
 ## ghostdesk/live/rebalance.py — the trade run (core)
 All outside dependencies are injected (`Deps`), so whole runs are tested with a fake broker and clock
@@ -283,3 +283,12 @@ that nothing changes).
 | `device()` | Apple GPU (`mps`), else CUDA, else CPU. |
 | `fit(images, labels, seed, cfg, log)` | One network with early stopping; returns (model, validation-loss history). |
 | `predict(models, images)` | Mean probability of an up move. |
+
+## ghostdesk/live/book_risk.py — risk of the live book (core)
+Describes the book each day; it does not change the pre-registered portfolio (decision D22).
+
+| Name | Contract |
+|---|---|
+| `WINDOW`, `MIN_DAYS`, `YEAR` | 252 daily returns; a stock needs 120 to enter the covariance; 252 days a year. |
+| `ledoit_wolf(x)` | Ledoit-Wolf (2004) shrinkage of the sample covariance toward a scaled identity; returns (covariance, intensity). |
+| `book_risk(values, equity, returns, spy, sectors)` | `vol_annual, beta_spy, gross, net, largest, sectors` (net and gross per sector), `shrinkage, stocks, stocks_without_history, days`. |

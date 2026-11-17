@@ -184,4 +184,5 @@ today's members, as `filings_index`), `scores.parquet` (`cik, accession, prev_ac
 accepted_utc, error` and the `sim_` features of `text_signal.report_features.pair_features`; one row per pair, never recomputed),
 `rebalance_<YYYYMMDD>.json` (plan, signal, arrival prices, orders and fills), `health.json` (per mode: `at, ok,
 message`). The same files are kept in the private release `live-state` (uploaded after each score or trade
-run, restored when the cache is lost). Output for the page: `site-data/live.json` (gitignored; built by `live.dashboard_data.build`).
+run, restored when the cache is lost). Output for the page: `site-data/live.json` (gitignored; built by `live.dashboard_data.build`); its `risk` key is
+`live.book_risk.book_risk` of the held positions (null with no positions).

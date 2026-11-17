@@ -188,6 +188,29 @@ function recon() {
   });
 }
 
+function risk() {
+  const r = D.risk, host = $("risk"), g = $("risksec");
+  if (!r) { const msg = `<p class="empty">Shown when the desk holds positions.</p>`; host.innerHTML = msg; g.innerHTML = msg; return; }
+  const pct = (x) => (x * 100).toFixed(1) + "%";
+  host.innerHTML = `<div class="big">${pct(r.vol_annual)}</div>
+    <span style="color:var(--muted);font-size:.9rem">expected yearly volatility of the account</span>
+    <div class="kv"><span>Beta to SPY</span><span>${r.beta_spy.toFixed(2)}</span>
+    <span>Net exposure</span><span>${pct(r.net)}</span><span>Gross exposure</span><span>${pct(r.gross)}</span>
+    <span>Largest position</span><span>${r.largest ? r.largest.symbol + " " + pct(r.largest.weight) : "—"}</span>
+    <span>Stocks without a year of prices</span><span>${r.stocks_without_history} of ${r.stocks}</span></div>
+    <p class="tip" style="position:static;opacity:1;background:none;color:var(--muted);padding:0;margin-top:.8rem">Covariance with Ledoit-Wolf shrinkage (${r.days} days, intensity ${r.shrinkage.toFixed(2)}).</p>`;
+  const rows = r.sectors.slice(0, 8), [s, w] = svg(g, 22 + rows.length * 26), lab = 150;
+  const mx = Math.max(0.02, ...rows.map((x) => Math.abs(x.net))), mid = lab + (w - lab) / 2, W = (x) => (x / mx) * ((w - lab) / 2 - 40);
+  el("line", { x1: mid, x2: mid, y1: 0, y2: rows.length * 26 + 6, stroke: "var(--rule)" }, s);
+  rows.forEach((x, i) => {
+    const y = 6 + i * 26;
+    el("text", { x: 0, y: y + 12, class: "tick", style: "font-size:12px;fill:var(--ink)" }, s).textContent = x.sector;
+    el("rect", { x: x.net >= 0 ? mid : mid + W(x.net), y, width: Math.abs(W(x.net)), height: 14, rx: 3, fill: x.net >= 0 ? "var(--accent)" : "var(--cool)" }, s);
+    el("text", { x: x.net >= 0 ? mid + W(x.net) + 6 : mid + W(x.net) - 6, y: y + 12, class: "tick", "text-anchor": x.net >= 0 ? "start" : "end" }, s).textContent = pct(x.net);
+  });
+  el("text", { x: lab, y: rows.length * 26 + 18, class: "tick" }, s).textContent = "Net weight by sector (long minus short)";
+}
+
 function health() {
   const names = { score: "Reports read", trade: "Trading", site: "Page" };
   $("health").innerHTML = Object.entries(D.health).map(([k, h]) =>
@@ -195,7 +218,7 @@ function health() {
     + `<span>Updated ${new Date(D.updated).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>`;
 }
 
-function draw() { if (!D) return; badge(); stats(); curve(); strip(); sectors(); feed(); recon(); vwap(); health(); }
+function draw() { if (!D) return; badge(); stats(); curve(); strip(); sectors(); feed(); recon(); risk(); vwap(); health(); }
 
 fetch("data/live.json", { cache: "no-cache" }).then((r) => r.json()).then((d) => { D = d; draw(); })
   .catch(() => { $("stats").innerHTML = `<div class="stat"><b>—</b><span>Live data is not available now.</span></div>`; });

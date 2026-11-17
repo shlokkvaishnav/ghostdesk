@@ -4,13 +4,15 @@ This file is the entry point for any agent (or person) who works on Ghostdesk. R
 that your task needs. The documents describe the code; you should rarely need to search the code to find out what
 exists.
 
-## 1. The project in five lines
-Ghostdesk is a research and paper-trading system for US stocks, with three parts:
+## 1. The project in short
+Ghostdesk is a research and paper-trading system for US stocks, with four parts:
 1. **Signal** — how much a company's 10-K/10-Q text changed since its comparable earlier report ("lazy prices",
    Cohen, Malloy and Nguyen 2020), tested without look-ahead or survivorship bias.
-2. **Execution** — VWAP child orders over the first hour. A PPO agent was compared with TWAP, VWAP and
+2. **Return models** — LightGBM on point-in-time stock features and a CNN on price-chart images, each tested once
+   under its own pre-registration (`return_models/`; decisions D18, D19).
+3. **Execution** — VWAP child orders over the first hour. A PPO agent was compared with TWAP, VWAP and
    Almgren-Chriss on replayed real minute bars (Step 4); it did not beat VWAP, so the live desk uses VWAP.
-3. **Live** — one GitHub Actions job per US trading day on Alpaca paper trading, and a static GitHub Pages site.
+4. **Live** — one GitHub Actions job per US trading day on Alpaca paper trading, and a static GitHub Pages site.
 
 ## 2. Where to find what
 | Need | Document |
@@ -23,7 +25,6 @@ Ghostdesk is a research and paper-trading system for US stocks, with three parts
 | Data problems found, their causes and fixes | [docs/dev/data-quality.md](docs/dev/data-quality.md) |
 | Design decisions and why | [docs/dev/decisions.md](docs/dev/decisions.md) |
 | Rules for code, commits, secrets, writing | [docs/dev/conventions.md](docs/dev/conventions.md) |
-| The research plan (public) | [docs/plan.md](docs/plan.md) |
 | Data method and coverage (public) | [docs/data.md](docs/data.md) |
 
 ## 3. Hard rules (do not break)

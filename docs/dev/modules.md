@@ -144,14 +144,6 @@ second, retries on 429/5xx, disk cache in `data/raw/` keyed by URL hash.
 `kappa(p, lam)`, `almgren_chriss(X, p, lam)` (holdings; `lam=0` gives TWAP), `expected_cost(x, p)`,
 `cost_variance(x, p)`, `mean_variance(x, p, lam)`.
 
-## ghostdesk/execution/impact_simulator.py — simulator (ready)
-`ImpactSimulator`: arithmetic Brownian price, linear permanent and power-law temporary impact; `.reset(seed)`,
-`.step(n)`. Matches the closed-form Almgren-Chriss cost by Monte Carlo (tests). To be calibrated per stock in Step 4.
-
-## ghostdesk/execution/trading_env.py — Gymnasium environment (ready)
-`ExecutionEnv` (sell X shares over N steps, reward = minus implementation shortfall; `.reset`, `.step`),
-`run_schedule(env, holdings, seed)`.
-
 ## ghostdesk/execution/replay_simulator.py — replay simulator on real minute bars (core)
 | Name | Contract |
 |---|---|
@@ -171,9 +163,6 @@ second, retries on 429/5xx, disk cache in `data/raw/` keyed by URL hash.
 | `cost_fraction(x_dollar, adv_dollar, sigma, ...)` | One day's even trading cost: half-spread + permanent/2 + temporary. |
 | `capacity_curve(trades, aums)` | Mean monthly cost (fraction of the fund) per fund size. |
 | `break_even(curve, gross_monthly)` | Fund size where cost = gross return; NaN off the curve. |
-
-## ghostdesk/execution/realism_checks.py — realism checks (ready; Step 4b gate)
-`acf`, `hill`, `stylised_facts`, `window_stats`, `auc`, `discriminator_score(real, fake, folds, seed)`.
 
 ## ghostdesk/execution/ppo_agent.py — PPO (ready)
 `PPOConfig`, `mlp`, `ActorCritic` (`.dist`, `.value`, `.act`), `gae(...)`, `PPO` (`.learn(total_steps)`,

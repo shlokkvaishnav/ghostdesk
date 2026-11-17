@@ -2,47 +2,45 @@
 
 ![CI](https://github.com/shlokkvaishnav/ghostdesk/actions/workflows/ci.yml/badge.svg)
 
-**Can a program read company reports, choose stocks, and trade them at a low cost, with no person at the desk?**
+**Can a program read company reports, choose stocks, and trade them, with no person at the desk, and can its
+backtests be trusted?**
 
 ## What it does
-A quant trading desk does three jobs. Ghostdesk does all three by itself:
-1. **Signal.** It reads each annual and quarterly report (10-K, 10-Q) that a company sends to the SEC, and measures
-   how much the text changed since the comparable earlier report. Research shows that companies that change their
-   reports a lot often do worse later ("lazy prices", Cohen, Malloy and Nguyen, 2020). Ghostdesk tests this again,
-   with no hindsight.
-2. **Execution.** It splits each trade into small orders over the first hour. A reinforcement-learning agent (PPO)
-   was tested against standard methods (TWAP, VWAP, Almgren-Chriss) on real minute bars. It did not beat VWAP,
-   so the live desk uses VWAP.
-3. **Live.** Each month, one job trades with fake money (Alpaca paper trading) and updates a web page.
+1. **Data with no hindsight.** The S&P 500 as it was on each date (including the companies that later left it),
+   47,719 10-K and 10-Q reports with the exact time the SEC accepted each one, numbers as they were first reported,
+   and clean daily prices for 2016-2025.
+2. **Three ways to choose stocks, each tested once under a pre-registration.** The rules of each test were committed
+   and timestamped before the test data was used, and the code locks the test years until then.
+
+   | Model | Test 2022-2025, long-short after costs | Result |
+   |---|---|---|
+   | Text change of 10-K/10-Q reports ("lazy prices") | +0.09%/month, 95% CI [-0.36, +0.54] | not detected |
+   | LightGBM on 18 point-in-time stock features | -0.11%/month, 95% CI [-0.72, +0.49] | not detected |
+   | CNN on 20-day price-chart images | -0.30%/month, 95% CI [-0.77, +0.17] | not detected |
+
+   A table of common backtest mistakes shows how much each one changes the answer: the wrong stock list (today's
+   S&P 500) changes it the most.
+3. **Execution.** A reinforcement-learning agent (PPO) was tested against TWAP, VWAP and Almgren-Chriss on replayed
+   real minute bars. It did not beat VWAP, so the live desk uses VWAP.
+4. **Live desk.** Each month a GitHub Actions job trades the text-change portfolio with paper money on Alpaca, in
+   VWAP child orders over the first hour, checks the book against the plan, and updates a web page.
 
 ## How it is built
-A program with no person at the desk must be safe when things go wrong. Each guarantee has a test: no look-ahead,
-no survivorship bias, paper money only, a rerun does no harm, a crashed run is finished by the next one, a missed
-day is caught up, orders never cross zero, the book is checked against the plan, and the live code picks the same
-stocks as the tested study. Every failure is shown on the page; none sends an email. Details:
-[engineering](engineering.md).
+A desk with no person at it must be safe when things go wrong. Each guarantee has a test: no look-ahead (every
+feature and chart is checked by changing all later data), no survivorship bias, a test period that the code keeps
+locked, paper money only, a rerun does no harm, a crashed run is finished by the next one, a missed day is caught
+up, orders never cross zero, and the live code picks the same stocks as the tested study. Every failure shows on
+the page; none sends an email. Details: [engineering](engineering.md).
 
-## Status
-- **Data: done.** The S&P 500 as it was on each date (with the companies that left it), 47,719 reports with the
-  exact time the SEC accepted each one, text-change scores for 30,514 report pairs, and clean daily prices for
-  2016-2025. How each problem in the data was found and fixed: [data quality](dev/data-quality.md).
-- **Signal study: done.** In the pre-registered test (2022-2025), the effect was **not detected**: +0.09% per month
-  after costs, 95% interval −0.36% to +0.54%. Over 2016-2025 the upper limit is about 0.5% per month. Details:
-  [results](results.md).
-- **Backtest mistakes, measured:** for this signal, timing look-ahead changes little; the stock list and mixing
-  annual with quarterly reports change the most.
-- **Execution study: done.** On real 2024 minute bars, the PPO agent did **not** trade more cheaply than VWAP at
-  any order size; at 5% of daily volume it cost about 1 bp more. The strategy can trade up to about $7.2 billion
-  before costs use up its gross return. Details: [results](results.md#results-the-execution-study).
-- **Live job: built.** Each month, the desk buys the least-changed and sells the most-changed reports with
-  fake money (Alpaca paper trading), in VWAP orders over the first hour. The [live page](../) shows the account
-  against SPY.
-- **Next:** the first trades, then the research note (Step 6).
+## Results and documents
+- [Results](results.md): every test, with its confidence interval and power.
+- [Research note](note.md): the short write-up.
+- Pre-registrations: [signal](preregistration.md), [ML](preregistration-ml.md), [chart CNN](preregistration-cnn.md).
+- [Data method](data.md). Raw market data is not published; only statistics are.
 
 ## Run it
 ```bash
 make install && make check
 ```
-The plan: [plan](plan.md). The data method: [data](data.md). Raw market data is not published; only charts and
-statistics are. Developers start at the
-[status page](dev/status.md).
+
+The [live page](../). Developers start at the [status page](dev/status.md).

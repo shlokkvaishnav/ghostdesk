@@ -258,3 +258,11 @@ the decision of an old entry — add a new entry that replaces it.
 | `scripts/ml_study.py` | `scripts/studies/run_ml_study.py` |
 | `scripts/cnn_study.py` | `scripts/studies/run_cnn_study.py` |
 | `scripts/live.py` | `scripts/live_desk.py` |
+
+### D21 — Remove code that no study or job uses (2026-11-18)
+- **Removed:** `execution/impact_simulator.py` and `execution/trading_env.py` (the first parametric simulator and
+  its Gymnasium environment; the execution study used the replay simulator on real minute bars instead),
+  `execution/realism_checks.py` (the gate for a learned world model, decision D2, which was never built), their
+  tests, and `docs/plan.md` (the first plan; the results, note and status pages now describe the project).
+  They stay in git history.
+- **Kept:** every module that a study, the live job or a test of a used module needs.

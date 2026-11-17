@@ -1,6 +1,6 @@
 # Status and next work
 
-Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
+Updated 2026-11-18.
 
 ## Done
 | Step | Result | Evidence |
@@ -72,7 +72,6 @@ list (survivorship) and mixing 10-K with 10-Q ranks change the most.
 
 ## Later
 
-- Step 4b — optional world model behind the gates of decision D2.
 
 - Filing-diff visual on the page; pitfall table with a CI per change; actionlint in CI.
 

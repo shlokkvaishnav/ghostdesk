@@ -1,7 +1,7 @@
 [project]
 name = "ghostdesk"
 version = "0.1.0"
-description = "A trading desk with no people at it: a filing signal, an RL execution agent and live paper trading on US stocks"
+description = "A trading desk with no people at it: point-in-time US stock data, pre-registered tests of a text signal and ML return models, and live paper trading"
 requires-python = ">=3.10"
 dependencies = ["numpy", "pandas", "pyarrow", "requests", "gymnasium", "lxml"]
 

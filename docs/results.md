@@ -106,3 +106,38 @@ a claim that the strategy earns money.
   still the cheapest fixed schedule at 1% and 5% of volume), but no real fills were measured.
 - First hour only, 20 stocks, one test year.
 - The simulator does not model the effect of the agent's orders on later prices beyond the impact model.
+
+# Results: the ML study
+
+**Short answer.** A LightGBM model of 18 point-in-time characteristics, retrained each January on all earlier
+months, did **not** rank next month's S&P 500 returns in the pre-registered test (2022-2025). Its long-short return
+after costs was -0.11% per month (95% CI [-0.72%, +0.49%]) and its mean IC was 0.000. It did better than a ridge
+model of the same inputs, but not significantly.
+
+## The test
+Rules fixed in [the ML pre-registration](preregistration-ml.md) (commit `e41120d`, OpenTimestamps proof
+`preregistration-ml.md.ots`). The code gave the models no month after 2021 until that file was committed
+(`ml/split.py`). Run once on 2026-11-18. Formation months 2022-01 to 2025-11 (47), Newey-West t (3 lags).
+
+| ID | Hypothesis | Estimate | t | 95% CI | Holm p |
+|---|---|---|---|---|---|
+| **M1 (primary)** | GBM long-short after 5 bps > 0 | -0.11%/month | -0.36 | [-0.72%, +0.49%] | 1.00 |
+| M2 | GBM mean IC > 0 | +0.000 | 0.03 | [-0.026, +0.027] | 1.00 |
+| M3 | GBM IC - linear IC > 0 | +0.012 | 1.33 | [-0.006, +0.029] | 0.55 |
+
+Not confirmatory: ridge long-short -0.34%/month after 5 bps (IC -0.011); GBM turnover 2.05 per month; GBM FF5 +
+momentum alpha after 5 bps -0.19%/month (t -1.07); GBM IC by year 2022 -0.009, 2023 +0.020, 2024 -0.002,
+2025 -0.007. In the same harness, plain 12-1 momentum had a gross long-short of +0.73%/month (IC +0.025).
+
+## What this means
+- The minimum detectable effect was about 1.3% per month (pre-registration, section 7), so the test can exclude only
+  large effects. The CI excludes a GBM edge above about 0.5% per month after costs.
+- In 2016-2021 (about 30,000 training rows) the model learned patterns that did not hold after 2021. A tree model
+  can mix many weak signals, but it cannot make a signal that is not in the data.
+- The model trades its whole book about once a month (turnover 2.05 of 2 legs), so even a small edge must pay
+  about 10 bps a month in costs.
+
+## Limits
+- Large companies only; 18 characteristics (no market value or book-to-market: no share counts in the data); a
+  short training history (from 2016).
+- One tree setting, chosen on 2020-2021 from three.

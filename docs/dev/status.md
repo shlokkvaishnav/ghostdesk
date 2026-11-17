@@ -42,6 +42,15 @@ Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
 ## Step 6 — write-up (done)
 - [Research note](../note.md) and [Engineering](../engineering.md) page.
 
+## Step 7 — ML study (decision D18)
+| Item | State |
+|---|---|
+| `ml/` (characteristics, split lock, models) and `scripts/ml_study.py` | done; `tests/test_ml.py` (look-ahead perturbation, lock, walk-forward, planted signal) |
+| Development 2019-2021 | GBM IC +0.023, linear +0.010; tree setting `large` chosen on 2020-2021 |
+| Pre-registration `docs/preregistration-ml.md` | committed `e41120d`, OpenTimestamps proof |
+| Test 2022-2025 | **done once**: M1 -0.11%/month after 5 bps (CI [-0.72, +0.49]); IC 0.000; not detected. See [results](../results.md#results-the-ml-study). |
+| Next | price-chart CNN, time-safe text embeddings, risk engineering (same harness) |
+
 ## Decisions on the review (owner: "do what is better")
 - Pre-2016 comparison: not with free data (D11). RL study reframed (D12). External timestamp done (D13).
 

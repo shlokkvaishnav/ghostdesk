@@ -121,8 +121,12 @@ the decision of an old entry — add a new entry that replaces it.
   (Alpaca rejects an order that crosses zero).
 - **State:** Alpaca is the record of trades (orders, positions, portfolio history). Report scores are kept in an
   Actions cache (`data/live/scores.parquet`); if the cache is lost, the job computes the scores again from SEC
-  (about 500 report pairs). Each run is idempotent: it trades only the difference between target and position, and
-  a difference below 20% of the per-stock target is not traded.
+  (about 500 report pairs). A run trades only the difference between target and position (a difference below
+  20% of the per-stock target is not traded). A later run on the same day does nothing if the plan is empty and
+  never overwrites the first run's record (`rebalance_<date>.json`); if it finishes leftover trades, it writes
+  `rebalance_<date>_<HHMM>.json` and uses order IDs with its own start time (amended 2026-11-17 after review).
+- **Broker limits:** at most 170 requests a minute from the client (Alpaca allows 200); 429 and 5xx answers are
+  retried for about 2 minutes; only a 4xx rejection stops a stock for the rest of the run.
 - **Schedule (UTC):** `score+site` at 21:40 each weekday (after the close). `trade` at 13:40, 14:40, 15:40 each
   weekday (changed on 2026-11-17 from days 1-7, so the first run on the empty account starts with no manual step);
   the script trades only on the first session of a month (or on an empty account), and only between the open and

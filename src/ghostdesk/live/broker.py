@@ -7,6 +7,7 @@ cannot be used by mistake. Keys come from `data.alpaca.keys` and are sent only a
 from __future__ import annotations
 
 import time
+from urllib.parse import urlparse
 
 import pandas as pd
 import requests
@@ -16,12 +17,14 @@ SNAPSHOTS = "https://data.alpaca.markets/v2/stocks/snapshots"
 
 
 class Broker:
-    def __init__(self, headers: dict | None = None, base: str = PAPER, session=None, sleep=time.sleep):
-        if not base.startswith("https://paper-api.alpaca.markets"):
+    def __init__(self, headers: dict | None = None, base: str = PAPER, session=None, sleep=time.sleep,
+                 clock=time.monotonic, per_minute: int = 170):
+        if urlparse(base).hostname != "paper-api.alpaca.markets":
             raise ValueError("only the Alpaca paper endpoint is allowed")
         self.base, self._headers = base, headers
         self.session = session or requests.Session()
-        self._sleep = sleep
+        self._sleep, self._clock, self._last = sleep, clock, -1e9
+        self.gap = 60.0 / per_minute  # client-side limit under Alpaca's 200 requests per minute
 
     def _h(self) -> dict:
         if self._headers is None:
@@ -29,11 +32,19 @@ class Broker:
             self._headers = keys()
         return self._headers
 
+    def _pace(self) -> None:
+        wait = self.gap - (self._clock() - self._last)
+        if wait > 0:
+            self._sleep(wait)
+        self._last = self._clock()
+
     def _req(self, method: str, path: str, **kw):
-        for attempt in range(5):
+        """Paced request. 429 and 5xx are retried for about 2 minutes; other 4xx raise at once."""
+        for attempt in range(8):
+            self._pace()
             r = self.session.request(method, self.base + path, headers=self._h(), timeout=30, **kw)
             if r.status_code == 429 or r.status_code >= 500:
-                self._sleep(min(30.0, 3.0 * (attempt + 1)))
+                self._sleep(min(30.0, 5.0 * (attempt + 1)))
                 continue
             if r.status_code >= 400:
                 raise BrokerError(r.status_code, _message(r))
@@ -65,19 +76,19 @@ class Broker:
     def position_rows(self) -> list[dict]:
         return self._req("GET", "/positions")
 
-    def orders(self, after: str | None = None, status: str = "all") -> list[dict]:
-        """All orders (newest first) submitted after `after` (ISO time), across pages."""
+    def orders(self, after: str | None = None, status: str = "all", limit: int = 0) -> list[dict]:
+        """Orders (newest first) submitted after `after` (ISO time): all pages, or only the first `limit`."""
         out: list[dict] = []
         until = None
         while True:
-            params = {"status": status, "limit": 500, "direction": "desc"}
+            params = {"status": status, "limit": limit or 500, "direction": "desc"}
             if after:
                 params["after"] = after
             if until:
                 params["until"] = until
             page = self._req("GET", "/orders", params=params)
             out += page
-            if len(page) < 500:
+            if limit or len(page) < 500:
                 return out
             until = page[-1]["submitted_at"]
 
@@ -105,6 +116,7 @@ class Broker:
         Used only to size orders."""
         out: dict[str, float] = {}
         for i in range(0, len(symbols), 200):
+            self._pace()
             r = self.session.get(SNAPSHOTS, params={"symbols": ",".join(symbols[i:i + 200]), "feed": "iex"},
                                  headers=self._h(), timeout=30)
             if r.status_code >= 400:
@@ -131,6 +143,11 @@ class BrokerError(RuntimeError):
     def __init__(self, status: int, message: str):
         super().__init__(f"Alpaca {status}: {message}")
         self.status, self.message = status, message
+
+    @property
+    def permanent(self) -> bool:
+        """A rejection of the request itself (4xx other than 429): the same order would fail again."""
+        return 400 <= self.status < 500 and self.status != 429
 
 
 def _message(r) -> str:

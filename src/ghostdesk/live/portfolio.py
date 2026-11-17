@@ -1,6 +1,6 @@
 """From quintiles to orders: target shares, the trades to reach them, and a VWAP schedule of child orders.
 
-Decision D15: long Q5 and short Q1, equal weights, each leg `leg` (1.0) of equity. Longs in fractionable stocks use
+Decision D15: long Q5 and short Q1, equal weights, each leg `leg` of equity (the live job uses 0.9). Longs in fractionable stocks use
 fractional shares (4 decimals, `UNIT_FRACTIONAL`); shorts and other stocks use whole shares (Alpaca does not allow
 fractional short sales); a stock whose whole-share target rounds to 0 is left out and reported. A trade smaller
 than `min_frac` of the per-stock target value is skipped, so a rerun on the same day does not trade again. Child
@@ -45,8 +45,8 @@ def too_expensive(sides: pd.Series, target: dict[str, float], prices: pd.Series)
 
 def unit_of(symbol: str, current: float, target: float, fractional: set[str] | frozenset) -> float:
     """Order unit: 0.0001 when the long side of a fractionable stock is traded (long now or long at the target, a
-    flip included), or when a fractional long is closed; else 1. `child_orders` keeps a new short side in whole
-    shares and closes a position in one exact order, so a mixed flip is safe."""
+    flip included), or when a fractional long is closed; else 1. In a flip, `child_orders` closes the old side in
+    one order of the exact current size and opens a new short side in whole shares, so a mixed flip is safe."""
     if (symbol in fractional and (current > 0 or target > 0)) or (current > 0 and current != round(current)):
         return UNIT_FRACTIONAL
     return 1.0

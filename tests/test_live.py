@@ -223,3 +223,24 @@ def test_learned_profile_from_minute_bars():
     assert sum(prof) == pytest.approx(1, abs=1e-3)
     assert learned_profile(bars, min_days=11) == (FIRST_HOUR_PROFILE, 10)  # too few stock-days: fixed profile
     assert buckets_left(0, profile=prof)[0][1] == pytest.approx(prof[0] / sum(prof))
+
+
+def test_broker_paces_requests_and_keeps_retrying_rate_limits():
+    t = [0.0]
+    waits = []
+
+    def sleep(x):
+        waits.append(x)
+        t[0] += x
+
+    answers = [FakeResponse(429, {})] * 5 + [FakeResponse(200, [])]
+    b = Broker(headers={}, session=FakeSession(answers), sleep=sleep, clock=lambda: t[0], per_minute=60)
+    assert b.positions() == {}  # five 429 answers in a row are still retried
+    assert all(w >= 0 for w in waits) and sum(waits) >= 5 * 1.0
+
+
+def test_broker_error_permanence_and_exact_paper_host():
+    assert BrokerError(422, "x").permanent and BrokerError(403, "x").permanent
+    assert not BrokerError(429, "x").permanent and not BrokerError(503, "x").permanent
+    with pytest.raises(ValueError):
+        Broker(headers={}, base="https://paper-api.alpaca.markets.example.com/v2")

@@ -7,8 +7,8 @@ with an error code (silent automation: the site shows the health).
   trade   on the first session of a month (or the first run on an empty account), between the open and 150
           minutes after it: quintiles of `composite` at the last close, targets, and VWAP child orders over the
           buckets left in the first hour. Elsewhere it does nothing. --dry-run prints the plan, sends no order.
-  flatten close every position and cancel open orders (market orders; the strategy stops until the next run of
-          `trade` on an empty account, so set the repository variable TRADING=off first to keep it stopped).
+  flatten close every position and cancel open orders (market orders). The strategy enters again on the next
+          first session of a month, so set the repository variable TRADING=off first to keep it stopped.
   off     record that trading is switched off (repository variable TRADING=off); sends nothing.
   site    data for the web page: site-data/live.json (account, equity against SPY, positions, new reports,
           rebalances, health). No raw prices, only what the page shows.
@@ -116,7 +116,8 @@ def score() -> None:
 
     path = LIVE / "scores.parquet"
     have = pd.read_parquet(path) if path.exists() else pd.DataFrame(columns=["cik", "accession"])
-    done = set(zip(have["cik"], have["accession"], strict=True))
+    ok_rows = have if have.empty else have[have["error"].fillna("") == ""]
+    done = set(zip(ok_rows["cik"], ok_rows["accession"], strict=True))  # errored rows are tried again
     todo = latest[[(c, a) not in done for c, a in zip(latest["cik"], latest["accession"], strict=True)]]
     by = index.drop_duplicates(["cik", "accession"]).set_index(["cik", "accession"])
 
@@ -180,7 +181,7 @@ def trade() -> None:
     month_sessions = cal[cal["date"].dt.to_period("M") == today.to_period("M")]
     first_of_month = today == month_sessions["date"].iloc[0]
     account = broker.account()
-    first_run = not broker.positions() and not broker.orders(after=f"{START}T00:00:00Z")
+    first_run = not broker.positions() and not broker.orders(after=f"{START}T00:00:00Z", limit=1)
     minutes = (t - open_utc).total_seconds() / 60
     if not args.dry_run:  # a dry run sends no order, so it may show the plan on any day and at any time
         if not (first_of_month or first_run):
@@ -230,6 +231,14 @@ def trade() -> None:
             print(f"  {s:6} {a:>6} -> {b:>6}")
         return health("trade", True, f"dry run: {len(plan)} stocks would trade", dry_run=True)
 
+    first_log = LIVE / f"rebalance_{today:%Y%m%d}.json"
+    run_tag = f"{now():%H%M}"
+    if first_log.exists():
+        if not plan:  # a later run on the same day: the rebalance is done; keep its record as it is
+            return health("trade", True, f"rebalance {today:%Y-%m-%d} done earlier; nothing left to trade")
+        log["rerun_of"] = first_log.name  # finish what an earlier run left; never overwrite its record
+    log_path = LIVE / f"rebalance_{today:%Y%m%d}_{run_tag}.json" if first_log.exists() else first_log
+    log["asset_lookup_failed"] = [s for s, a in assets.items() if not a]
     w = [x for _, x in weights]
     kids = {s: child_orders(a, b, w, unit_of(s, a, b, fractional)) for s, (a, b) in plan.items()}
     stopped: set[str] = set()
@@ -241,18 +250,22 @@ def trade() -> None:
             for j, q in enumerate(per_bucket[k]):
                 if s in stopped:
                     break
-                cid = f"gd-{today:%Y%m%d}-{k:02d}{j}-{s}"
+                cid = f"gd-{today:%Y%m%d}-{run_tag}-{k:02d}{j}-{s}"  # unique across reruns
                 try:
                     o = broker.submit(s, abs(q), side_of(q), cid)
                     log["orders"].append({"symbol": s, "bucket": k, "qty": q, "id": o["id"], "status": o["status"]})
                     if j == 0 and len(per_bucket[k]) > 1:
                         _wait_filled(broker, o["id"])  # a flip: the close must fill before the open
                 except BrokerError as e:
-                    stopped.add(s)  # this stock's later children would fail the same way
-                    log["orders"].append({"symbol": s, "bucket": k, "qty": q, "error": e.message})
-        (LIVE / f"rebalance_{today:%Y%m%d}.json").write_text(json.dumps(log, indent=1, default=str))
+                    if e.permanent:
+                        stopped.add(s)  # a rejected order: this stock's later children would fail the same way
+                    log["orders"].append({"symbol": s, "bucket": k, "qty": q, "error": e.message,
+                                          "status_code": e.status})
+                    if not e.permanent:
+                        break  # a rate limit or server error: skip this child; the next bucket tries again
+        log_path.write_text(json.dumps(log, indent=1, default=str))
     _final_fills(broker, log)
-    (LIVE / f"rebalance_{today:%Y%m%d}.json").write_text(json.dumps(log, indent=1, default=str))
+    log_path.write_text(json.dumps(log, indent=1, default=str))
     errs = sum(1 for o in log["orders"] if "error" in o)
     health("trade", errs == 0, f"rebalance {today:%Y-%m-%d}: {len(log['orders'])} orders, {errs} rejected",
            orders=len(log["orders"]), rejected=errs)

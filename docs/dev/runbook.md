@@ -120,6 +120,6 @@ make check     # ruff + pytest + mkdocs build --strict
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | push, pull request | ruff + pytest (torch CPU) |
-| `docs.yml` | push to `docs/**`, `mkdocs.yml` | strict build and Pages deploy |
+| `live.yml` | weekday schedules, push to `docs/**` or `web/**`, manual | live job (score, trade, flatten, site) and the whole Pages site |
 | `features.yml` | manual | text features in 6 shards |
 | `sources.yml` | manual | Fama-French factor files (blocked from the owner's network) |

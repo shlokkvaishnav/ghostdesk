@@ -64,7 +64,7 @@ def test_as_of_uses_only_earlier_reports():
 def test_find_instance_picks_the_instance_not_rendered_pages():
     import json
 
-    from ghostdesk.filings.edgar import Filing
+    from ghostdesk.filings.edgar_client import Filing
     from ghostdesk.filings.xbrl import find_instance
 
     class Fake:

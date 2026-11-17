@@ -28,9 +28,9 @@ Ghostdesk is a research and paper-trading system for US stocks, with three parts
 
 ## 3. Hard rules (do not break)
 1. **No look-ahead.** A report is usable only at the first NYSE open strictly after its SEC acceptance time
-   (`data/calendar.py:first_open_after`). Numbers come from each report's own XBRL, first reported value only
+   (`data/market_calendar.py:first_open_after`). Numbers come from each report's own XBRL, first reported value only
    (`filings/xbrl.py`). Never use the SEC companyfacts or frames APIs.
-2. **No survivorship bias.** The stock list on a date is the S&P 500 on that date (`data/universe.py`).
+2. **No survivorship bias.** The stock list on a date is the S&P 500 on that date (`data/sp500_universe.py`).
 3. **The test period 2022-2025 is used once**, after the pre-registration is committed. Build 2016-2019, check
    2020-2021. Do not tune anything on 2022-2025 data.
 4. **Secrets.** Never print, log, commit or echo `.env` values. Check a key only by name:

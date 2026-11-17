@@ -6,8 +6,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ghostdesk.live.broker import Broker, BrokerError
-from ghostdesk.live.portfolio import (
+from ghostdesk.evaluation.portfolio_stats import add_signals
+from ghostdesk.live.alpaca_broker import Broker, BrokerError
+from ghostdesk.live.live_signal import composite, current_members, latest_pairs, one_class_per_company, quintile
+from ghostdesk.live.order_planning import (
     FIRST_HOUR_PROFILE,
     buckets_left,
     child_orders,
@@ -18,8 +20,6 @@ from ghostdesk.live.portfolio import (
     trades,
     unit_of,
 )
-from ghostdesk.live.signal import composite, current_members, latest_pairs, one_class_per_company, quintile
-from ghostdesk.signal.study import add_signals
 
 SESSIONS = pd.DatetimeIndex(pd.bdate_range("2026-06-01", "2026-12-31"))
 
@@ -167,7 +167,7 @@ def test_broker_sessions_in_utc():
 
 
 def test_rebalance_cost_against_arrival():
-    from ghostdesk.live.site import rebalance_summary
+    from ghostdesk.live.dashboard_data import rebalance_summary
     log = {"date": "2026-12-01", "arrival": {"A": 100.0, "B": 50.0},
            "orders": [{"symbol": "A", "qty": 10, "price": 100.1, "filled_qty": 10},   # bought 10 bps higher
                       {"symbol": "B", "qty": -20, "price": 49.95, "filled_qty": 20},  # sold 10 bps lower
@@ -177,7 +177,7 @@ def test_rebalance_cost_against_arrival():
 
 
 def test_equity_curve_in_percent_from_the_first_day():
-    from ghostdesk.live.site import equity_curve
+    from ghostdesk.live.dashboard_data import equity_curve
     h = pd.DataFrame({"day": pd.to_datetime(["2026-11-16", "2026-11-17"]), "equity": [100000.0, 101000.0],
                       "profit_loss": [0, 1000]})
     spy = pd.DataFrame({"t": ["2026-11-16T05:00:00Z", "2026-11-17T05:00:00Z"], "c": [500.0, 495.0]})
@@ -186,7 +186,7 @@ def test_equity_curve_in_percent_from_the_first_day():
 
 
 def test_report_scores_rank_latest_pair_per_member():
-    from ghostdesk.live.site import report_scores
+    from ghostdesk.live.dashboard_data import report_scores
     at = pd.Timestamp("2026-11-17", tz="UTC")
     rows = [(c, f"a{c}", "10-Q", f"2026-1{1 if c % 2 else 0}-0{c % 9 + 1}", c / 10) for c in range(1, 8)]
     rows.append((1, "old", "10-Q", "2026-06-01", 0.0))  # older than 120 days
@@ -209,7 +209,7 @@ def test_close_all_cancels_orders_and_closes_positions():
 
 
 def test_learned_profile_from_minute_bars():
-    from ghostdesk.live.portfolio import learned_profile
+    from ghostdesk.live.order_planning import learned_profile
     rows = []
     for day in pd.bdate_range("2026-10-01", periods=5):  # EDT: 09:30 New York = 13:30 UTC
         for sym in ("A", "B"):
@@ -247,7 +247,7 @@ def test_broker_error_permanence_and_exact_paper_host():
 
 
 def test_reconcile_target_against_positions():
-    from ghostdesk.live.site import reconcile
+    from ghostdesk.live.dashboard_data import reconcile
     target = {"A": 10.0, "B": -5.0, "C": 2.5}
     pos = [{"symbol": "A", "qty": "10", "current_price": "50"},     # on target
            {"symbol": "B", "qty": "-3", "current_price": "100"},    # 200 off of a 500 target: not on target

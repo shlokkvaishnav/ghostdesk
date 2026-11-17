@@ -17,11 +17,11 @@ docs:
 check: lint test docs
 
 universe:
-	$(PY) scripts/build_universe.py
+	$(PY) scripts/data/build_universe.py
 index:
-	$(PY) scripts/build_filings_index.py
+	$(PY) scripts/data/build_filing_index.py
 prices:
-	$(PY) scripts/load_prices.py
+	$(PY) scripts/data/load_prices.py
 features:
 	@test -n "$(RUN)" || (echo "usage: make features RUN=<features workflow run id>" && exit 1)
-	$(PY) scripts/collect_features.py $(RUN)
+	$(PY) scripts/data/merge_feature_shards.py $(RUN)

@@ -24,19 +24,19 @@ why: [decisions](dev/decisions.md).
 - **State** is small files. Alpaca keeps the orders and positions; the job keeps the plan, the signal and the
   arrival prices. Both copies of the job's state (cache and release) are written after each run.
 - **Library and script are separate.** `src/ghostdesk/live/` holds the logic with the broker, clock, data and
-  store injected; `scripts/live.py` only wires the real ones. So a whole trading day runs in a test in a second.
+  store injected; `scripts/live_desk.py` only wires the real ones. So a whole trading day runs in a test in a second.
 
 ## Guarantees and the tests that prove them
 | Guarantee | How | Test |
 |---|---|---|
-| No look-ahead | A report counts from the first market open strictly after its SEC acceptance time | `test_calendar.py`, `test_panel.py::test_tradeable_time_and_window`, `test_live.py::test_latest_pairs_uses_only_reports_tradeable_by_the_close` |
-| No survivorship bias | The stock list on each date is the S&P 500 on that date, mapped to SEC CIKs with evidence | `test_universe.py` (14 cases from real data: renames, mergers, ticker reuse) |
+| No look-ahead | A report counts from the first market open strictly after its SEC acceptance time | `test_market_calendar.py`, `test_stock_month_panel.py::test_tradeable_time_and_window`, `test_live.py::test_latest_pairs_uses_only_reports_tradeable_by_the_close` |
+| No survivorship bias | The stock list on each date is the S&P 500 on that date, mapped to SEC CIKs with evidence | `test_sp500_universe.py` (14 cases from real data: renames, mergers, ticker reuse) |
 | Numbers as first reported | Each report's own XBRL; a restatement never replaces the first value | `test_xbrl.py` |
 | Live = tested strategy | The live code picks the same report, signal and quintile as the study for past months | `test_parity.py` (found and fixed a tie-break difference) |
 | Paper money only | The broker refuses any host but the paper API | `test_live.py::test_broker_refuses_a_live_endpoint`, `test_live.py::test_broker_error_permanence_and_exact_paper_host` |
-| A rerun does no harm | A later run trades only what is left; it never overwrites the first record; order IDs carry the run time | `test_runner.py::test_month_start_rebalance_then_rerun_does_nothing` |
-| A crash is recovered | A run that dies half way leaves no "done" mark; the next run in the window finishes the trades | `test_runner.py::test_a_run_that_dies_half_way_is_finished_by_the_next_run` |
-| A missed day is seen and caught up | A due rebalance outside the window is an error; the next session catches up | `test_runner.py::test_missed_window_is_an_error_and_the_next_session_catches_up` |
+| A rerun does no harm | A later run trades only what is left; it never overwrites the first record; order IDs carry the run time | `test_rebalance.py::test_month_start_rebalance_then_rerun_does_nothing` |
+| A crash is recovered | A run that dies half way leaves no "done" mark; the next run in the window finishes the trades | `test_rebalance.py::test_a_run_that_dies_half_way_is_finished_by_the_next_run` |
+| A missed day is seen and caught up | A due rebalance outside the window is an error; the next session catches up | `test_rebalance.py::test_missed_window_is_an_error_and_the_next_session_catches_up` |
 | Orders never cross zero | A flip closes the old side first; shorts are whole shares | `test_live.py::test_child_orders_reach_target_and_never_cross_zero` (11 cases x 4 schedules) |
 | Rate limits respected | At most 170 requests a minute (limit 200); 429 retried; only a real rejection stops a stock | `test_live.py::test_broker_paces_requests_and_keeps_retrying_rate_limits` |
 | The book matches the plan | After each run: stocks within 20% of target, value off target, gross per side | `test_live.py::test_reconcile_target_against_positions` |

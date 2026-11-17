@@ -1,9 +1,9 @@
 """Capacity of the signal strategy: the monthly trading cost, as a share of the fund, for a fund of A dollars.
 
-Each month the long-short portfolio (`signal.study.portfolio` rules: equal weights in Q5 and Q1) changes weight
+Each month the long-short portfolio (`evaluation.portfolio_stats.portfolio` rules: equal weights in Q5 and Q1) changes weight
 dw_i in stock i, so it trades dw_i x A dollars. A trade of X dollars, spread evenly over one day, costs (as a fraction
 of X) the half-spread + gamma sigma (X / ADV$) / 2 + eta sigma (X / ADV$) ** beta, with the Almgren, Thum, Hauptmann
-and Li (2005) values used by `execution.replay`. The fund's monthly cost is sum_i dw_i x cost_i. The break-even size
+and Li (2005) values used by `execution.replay_simulator`. The fund's monthly cost is sum_i dw_i x cost_i. The break-even size
 is the A at which this cost equals the strategy's gross monthly return.
 """
 from __future__ import annotations
@@ -11,8 +11,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ..signal.study import quintiles
-from .replay import BETA, ETA, GAMMA
+from ghostdesk.evaluation.portfolio_stats import quintiles
+from ghostdesk.execution.replay_simulator import BETA, ETA, GAMMA
 
 
 def monthly_trades(panel: pd.DataFrame, measure: str, n: int = 5) -> pd.DataFrame:

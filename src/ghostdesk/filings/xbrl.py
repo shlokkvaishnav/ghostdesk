@@ -19,7 +19,7 @@ import pandas as pd
 import requests
 from lxml import etree
 
-from .edgar import EdgarClient, Filing
+from ghostdesk.filings.edgar_client import EdgarClient, Filing
 
 FOLDER = "https://www.sec.gov/Archives/edgar/data/{cik}/{acc}/index.json"
 XBRLI = "http://www.xbrl.org/2003/instance"

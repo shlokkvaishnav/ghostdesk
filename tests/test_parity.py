@@ -1,15 +1,15 @@
-"""Live-vs-study parity: for past month-ends, the live code (`live.runner.formation` + `select`) must choose the same
-report for each company and give the same `composite` and quintile as the study panel (`signal.panel` +
-`signal.study.add_signals`). Uses the local data files; skipped where they are absent (CI has no data/)."""
+"""Live-vs-study parity: for past month-ends, the live code (`live.rebalance.formation` + `select`) must choose the same
+report for each company and give the same `composite` and quintile as the study panel (`text_signal.stock_month_panel` +
+`evaluation.portfolio_stats.add_signals`). Uses the local data files; skipped where they are absent (CI has no data/)."""
 import numpy as np
 import pandas as pd
 import pytest
 
-from ghostdesk.data.calendar import opens
-from ghostdesk.filings.edgar import DATA_DIR
-from ghostdesk.live.runner import formation, select
-from ghostdesk.signal.panel import close_utc
-from ghostdesk.signal.study import add_signals, quintiles
+from ghostdesk.data.market_calendar import opens
+from ghostdesk.evaluation.portfolio_stats import add_signals, quintiles
+from ghostdesk.filings.edgar_client import DATA_DIR
+from ghostdesk.live.rebalance import formation, select
+from ghostdesk.text_signal.stock_month_panel import close_utc
 
 NEED = ["panel_pooled.parquet", "filings_index.parquet", "features.parquet", "returns_daily.parquet"]
 pytestmark = pytest.mark.skipif(not all((DATA_DIR / f).exists() for f in NEED), reason="local data files absent")

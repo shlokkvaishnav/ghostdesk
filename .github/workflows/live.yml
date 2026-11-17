@@ -78,7 +78,7 @@ jobs:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python -u scripts/live.py score
+        run: python -u scripts/live_desk.py score
       - name: trade
         if: (steps.mode.outputs.mode == 'trade' && vars.TRADING != 'off') || steps.mode.outputs.mode == 'flatten'
         continue-on-error: true
@@ -87,18 +87,18 @@ jobs:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python -u scripts/live.py ${{ steps.mode.outputs.mode }}
+        run: python -u scripts/live_desk.py ${{ steps.mode.outputs.mode }}
       - name: trading is off
         if: steps.mode.outputs.mode == 'trade' && vars.TRADING == 'off'
         continue-on-error: true
-        run: python -u scripts/live.py off
+        run: python -u scripts/live_desk.py off
       - name: site data
         continue-on-error: true
         timeout-minutes: 10
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python -u scripts/live.py site
+        run: python -u scripts/live_desk.py site
       - name: keep the trade record in the release
         if: always() && steps.mode.outputs.mode != 'site'
         continue-on-error: true

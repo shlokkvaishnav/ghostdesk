@@ -37,7 +37,7 @@ def test_every_module_and_public_name_is_documented(path):
 
 def test_every_script_is_in_the_runbook():
     runbook = (DEV / "runbook.md").read_text()
-    missing = [p.name for p in (ROOT / "scripts").glob("*.py") if p.name not in runbook]
+    missing = [p.name for p in (ROOT / "scripts").rglob("*.py") if p.name not in runbook]
     assert not missing, f"scripts not in docs/dev/runbook.md: {missing}"
 
 

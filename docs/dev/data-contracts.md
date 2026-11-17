@@ -7,7 +7,7 @@ All files are in `data/` (gitignored, rebuilt by the scripts in [runbook.md](run
 ---
 
 ### data/universe.parquet
-Producer: `scripts/build_universe.py`. One row per membership interval (or part of one, after a holding-company
+Producer: `scripts/data/build_universe.py`. One row per membership interval (or part of one, after a holding-company
 split). 881 rows (863 inside 2010-2025). Key: `(ticker, start)`.
 
 | Column | Type | Meaning |
@@ -24,7 +24,7 @@ Invariants: intervals of one ticker do not overlap; a CIK is shared by overlappi
 (GOOG/GOOGL, FOX/FOXA, NWS/NWSA, DISCA/DISCK, UA/UAA).
 
 ### data/filings_index.parquet
-Producer: `scripts/build_filings_index.py`. Every 10-K, 10-Q, 10-K/A, 10-Q/A of the universe CIKs since 2009.
+Producer: `scripts/data/build_filing_index.py`. Every 10-K, 10-Q, 10-K/A, 10-Q/A of the universe CIKs since 2009.
 47,719 rows. Key: `(cik, accession)` (a joint report has one accession under several CIKs).
 
 | Column | Type | Meaning |
@@ -43,7 +43,7 @@ Producer: `scripts/build_filings_index.py`. Every 10-K, 10-Q, 10-K/A, 10-Q/A of 
 Invariant: `no_future_pairs` is true (checked when the file is built).
 
 ### data/features.parquet
-Producer: `features` workflow → `scripts/collect_features.py`. One row per paired original report filed while its
+Producer: `features` workflow → `scripts/data/merge_feature_shards.py`. One row per paired original report filed while its
 CIK was in the index, 2009-06 to 2025. 30,514 rows. Key: `(cik, accession)`.
 
 | Column | Type | Meaning |
@@ -79,7 +79,7 @@ CIK was in the index, 2009-06 to 2025. 30,514 rows. Key: `(cik, accession)`.
 Note: the measures are similarities (1 = same text). The signal is a change, so lower similarity = more change.
 
 ### data/price_symbols.parquet
-Producer: `scripts/load_prices.py`. The universe intervals of 2016-2025 with the symbol used for prices.
+Producer: `scripts/data/load_prices.py`. The universe intervals of 2016-2025 with the symbol used for prices.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -87,10 +87,10 @@ Producer: `scripts/load_prices.py`. The universe intervals of 2016-2025 with the
 | `start` | date | |
 | `end` | date or NaT | |
 | `cik` | Int64 or NA | |
-| `price_symbol` | str or None | Alpaca symbol (see `universe.price_symbols`); None = no prices. |
+| `price_symbol` | str or None | Alpaca symbol (see `sp500_universe.price_symbols`); None = no prices. |
 
 ### data/prices_daily.parquet and data/prices_daily_raw.parquet
-Producer: `scripts/load_prices.py`. Alpaca daily bars, feed `sip`, 2016-01-01 to 2025-12-31; adjusted (`all`) and
+Producer: `scripts/data/load_prices.py`. Alpaca daily bars, feed `sip`, 2016-01-01 to 2025-12-31; adjusted (`all`) and
 raw. 1,556,080 rows each. Key: `(symbol, t)`.
 
 | Column | Type | Meaning |
@@ -106,7 +106,7 @@ raw. 1,556,080 rows each. Key: `(symbol, t)`.
 | `vw` | float | Volume-weighted average price. |
 
 ### data/returns_daily.parquet
-Producer: `scripts/load_prices.py` (`data.returns.daily_returns`). Key: `(symbol, day)`.
+Producer: `scripts/data/load_prices.py` (`data.daily_returns.daily_returns`). Key: `(symbol, day)`.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -120,27 +120,27 @@ Producer: `scripts/load_prices.py` (`data.returns.daily_returns`). Key: `(symbol
 Use rule: a return counts only if the stock is a member (with a confirmed CIK) on both days.
 
 ### data/panel_<period>.parquet
-Producer: `scripts/signal_study.py`. One row per (formation month-end, CIK). Columns: `month, cik, ticker,
+Producer: `scripts/studies/run_signal_study.py`. One row per (formation month-end, CIK). Columns: `month, cik, ticker,
 price_symbol, accession, form, tradeable`, the nine `sim_*` measures, `fwd_ret, fwd_days, mom, logdv, log_assets,
 sic, spread, signal_age`, then the ranked signals `sim_*_r, composite, composite_ind`. Key: `(month, cik)`.
 
 ### data/results_<period>.json
-Producer: `scripts/signal_study.py`. `period, formation, primary, prereg_commit, code_commit, panel` and, per signal,
-the `signal.study.summary` dictionary.
+Producer: `scripts/studies/run_signal_study.py`. `period, formation, primary, prereg_commit, code_commit, panel` and, per signal,
+the `evaluation.portfolio_stats.summary` dictionary.
 
 ### data/ml_<period>.json and data/ml_predictions_<period>.parquet
-Producer: `scripts/ml_study.py`. JSON: `period, prereg_commit, features` and, per model (`linear`, `gbm_small`,
-`gbm_base`, `gbm_large`, `single_<characteristic>`), the `signal.study.summary` dictionary of its prediction, with
+Producer: `scripts/studies/run_ml_study.py`. JSON: `period, prereg_commit, features` and, per model (`linear`, `gbm_small`,
+`gbm_base`, `gbm_large`, `single_<characteristic>`), the `evaluation.portfolio_stats.summary` dictionary of its prediction, with
 `by_period` (2019 and 2020-2021 in `dev`). Parquet: `month, cik, pred, fit_month, model`; key `(model, month, cik)`;
 invariant `fit_month <= month` (the model trained only on months before `fit_month`).
 
 ### data/cnn_<period>.json and data/cnn_predictions_<period>[_seed<n>].parquet
-Producer: `scripts/cnn_study.py`. JSON: `period, prereg_commit, train_images, train_up_share, seeds,
-rows_with_image, val_loss` (per seed), `cnn` (the `signal.study.summary` of the mean prediction), `ic_by_month`.
+Producer: `scripts/studies/run_cnn_study.py`. JSON: `period, prereg_commit, train_images, train_up_share, seeds,
+rows_with_image, val_loss` (per seed), `cnn` (the `evaluation.portfolio_stats.summary` of the mean prediction), `ic_by_month`.
 Parquet: `month, cik, pred` (mean probability of an up month; the seed files also have `seed`); key `(month, cik)`.
 
 ### data/minutes.parquet
-Producer: `scripts/load_minutes.py`. Alpaca 1-minute bars (raw), 20 stocks, 2023-2024, minutes 0-59 after 09:30.
+Producer: `scripts/data/load_minute_bars.py`. Alpaca 1-minute bars (raw), 20 stocks, 2023-2024, minutes 0-59 after 09:30.
 Key: `(symbol, t)`.
 
 | Column | Type | Meaning |
@@ -159,11 +159,11 @@ Key: `(symbol, t)`.
 | `group` | str | `large` or `small`. |
 
 ### data/execution_results_<eval>_seed<n>.json, data/capacity.json
-Producers: `scripts/execution_study.py`, `scripts/capacity.py`. Mean costs (bps) per group, size and strategy;
+Producers: `scripts/studies/run_execution_study.py`, `scripts/studies/run_capacity.py`. Mean costs (bps) per group, size and strategy;
 paired differences against the best fixed schedule with day-clustered 95% intervals; cost curve and break-even.
 
 ### data/execution_summary.json
-Producer: `scripts/execution_summary.py` (from the three `execution_results_test_seed<n>.json`). Key `rows`: one
+Producer: `scripts/studies/summarize_execution_study.py` (from the three `execution_results_test_seed<n>.json`). Key `rows`: one
 entry per group, size and agent with `best_fixed`, `diff_bps_per_seed`, `diff_bps_mean`, `ci95_per_seed`,
 `seeds_worse`, `seeds_better`. Invariant: the best fixed schedule is the same in all seeds.
 
@@ -179,9 +179,9 @@ written by the producers; [docs/data.md](../data.md) quotes them.
 | `data/features_run/` | Shard artifacts of the last `features` run. |
 
 ### Live state: data/live/ (Actions cache `live-state-*`)
-Producer: `scripts/live.py`. `members.parquet` (`symbol, cik, name, sector`), `index.parquet` (report index of
+Producer: `scripts/live_desk.py`. `members.parquet` (`symbol, cik, name, sector`), `index.parquet` (report index of
 today's members, as `filings_index`), `scores.parquet` (`cik, accession, prev_accession, form, report_date,
-accepted_utc, error` and the `sim_` features of `signal.features.pair_features`; one row per pair, never recomputed),
+accepted_utc, error` and the `sim_` features of `text_signal.report_features.pair_features`; one row per pair, never recomputed),
 `rebalance_<YYYYMMDD>.json` (plan, signal, arrival prices, orders and fills), `health.json` (per mode: `at, ok,
 message`). The same files are kept in the private release `live-state` (uploaded after each score or trade
-run, restored when the cache is lost). Output for the page: `site-data/live.json` (gitignored; built by `live.site.build`).
+run, restored when the cache is lost). Output for the page: `site-data/live.json` (gitignored; built by `live.dashboard_data.build`).

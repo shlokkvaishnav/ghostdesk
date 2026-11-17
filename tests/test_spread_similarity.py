@@ -2,8 +2,8 @@
 import numpy as np
 import pandas as pd
 
-from ghostdesk.data.spread import corwin_schultz, monthly_spread
-from ghostdesk.signal.similarity import all_measures, cosine, edit, jaccard
+from ghostdesk.data.spread_estimate import corwin_schultz, monthly_spread
+from ghostdesk.text_signal.text_similarity import all_measures, cosine, edit, jaccard
 
 
 def simulate(spread, days=400, steps=390, vol=0.01, seed=0):

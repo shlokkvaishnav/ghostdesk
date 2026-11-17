@@ -15,7 +15,7 @@ Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
 ## Step 3 — the signal study (done)
 | Item | State |
 |---|---|
-| Panel builder `signal/panel.py`, statistics `signal/study.py` | done, tested |
+| Panel builder `text_signal/stock_month_panel.py`, statistics `evaluation/portfolio_stats.py` | done, tested |
 | Build period 2016-2019 | done: `composite` long-short 0.46%/month gross (t 2.22), 0.43% net of 5 bps (t 2.06); industry-neutral t 1.36; Fama-MacBeth t 0.16 |
 | Outside review of the research value | done (2026-11-16); accepted changes are in decisions D9-D10 |
 | Pre-registration `docs/preregistration.md` | written; committed before any 2020-2025 return was computed |
@@ -25,7 +25,7 @@ Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
 ## Step 4 — the execution study (done)
 | Item | State |
 |---|---|
-| Replay simulator `execution/replay.py`, capacity `execution/capacity.py` | done, tested |
+| Replay simulator `execution/replay_simulator.py`, capacity `execution/capacity.py` | done, tested |
 | Validation (2023-10..12) and design changes | done (decision D14) |
 | Test 2024, 3 seeds | **done**: PPO is not cheaper than VWAP in any cell; at 5% of volume it costs about 1 bp more (all seeds significant). Price-blind PPO is the same. See [results](../results.md#results-the-execution-study). |
 | Capacity | break-even fund about $7.2B at the pooled gross return |
@@ -34,7 +34,7 @@ Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
 | Item | State |
 |---|---|
 | Design | decisions D15-D17: pre-registered portfolio, monthly, fractional longs, 0.9 legs, VWAP child orders with a learned first-hour profile, Alpaca as the record of trades |
-| Library `live/` (broker, signal, portfolio, runner, site) and `scripts/live.py` | done; `tests/test_live.py`, end-to-end `tests/test_runner.py`, live-vs-study `tests/test_parity.py` |
+| Library `live/` (broker, signal, portfolio, runner, site) and `scripts/live_desk.py` | done; `tests/test_live.py`, end-to-end `tests/test_rebalance.py`, live-vs-study `tests/test_parity.py` |
 | Workflow `live.yml`, page `web/`, state in cache + release `live-state` | done; kill switch `TRADING=off`, `flatten` mode |
 | Full score on Actions | done (run 44035365279) |
 | First rebalance | done 2026-11-17 (run 44106927337, dispatched by hand: no timed run started): 1,366 orders, 0 rejected, 198/198 stocks on target |
@@ -45,7 +45,7 @@ Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
 ## Step 7 — ML study (decision D18)
 | Item | State |
 |---|---|
-| `ml/` (characteristics, split lock, models) and `scripts/ml_study.py` | done; `tests/test_ml.py` (look-ahead perturbation, lock, walk-forward, planted signal) |
+| `ml/` (characteristics, split lock, models) and `scripts/studies/run_ml_study.py` | done; `tests/test_return_models.py` (look-ahead perturbation, lock, walk-forward, planted signal) |
 | Development 2019-2021 | GBM IC +0.023, linear +0.010; tree setting `large` chosen on 2020-2021 |
 | Pre-registration `docs/preregistration-ml.md` | committed `e41120d`, OpenTimestamps proof |
 | Test 2022-2025 | **done once**: M1 -0.11%/month after 5 bps (CI [-0.72, +0.49]); IC 0.000; not detected. See [results](../results.md#results-the-ml-study). |
@@ -55,7 +55,7 @@ Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
 ## Decisions on the review (owner: "do what is better")
 - Pre-2016 comparison: not with free data (D11). RL study reframed (D12). External timestamp done (D13).
 
-## Pitfall-bias table (2016-2021 only; `scripts/pitfalls.py`, `data/pitfalls.json`)
+## Pitfall-bias table (2016-2021 only; `scripts/studies/run_pitfall_table.py`, `data/pitfalls.json`)
 Primary signal, equal-weighted long-short, gross. Each row turns one guard off.
 
 | Variant | Long-short %/month | t | IC | Change vs baseline (pp) | Stock-months |
@@ -78,4 +78,4 @@ list (survivorship) and mixing 10-K with 10-Q ranks change the most.
 
 ## Known open items
 - data-quality F7 (MD&A in Exhibit 13), F8 (revenue concept names): not blocking.
-- 44 feature errors (network): can be retried with `extract_features.py --ciks ...`.
+- 44 feature errors (network): can be retried with `extract_text_features.py --ciks ...`.

@@ -15,7 +15,7 @@ the decision of an old entry — add a new entry that replaces it.
 - **Decision:** a learned market simulator is tried only after Step 4, and kept only if it passes three gates
   written before the try: realistic (stylised-fact ratios in [2/3, 3/2], discriminator AUC < 0.80 on held-out
   days), useful (PPO trained with it beats PPO without it on real held-out days, 95% interval below 0), and cheap.
-- **Consequences:** `execution/realism.py` is kept for the gate; the old Bitcoin world model was removed (in git
+- **Consequences:** `execution/realism_checks.py` is kept for the gate; the old Bitcoin world model was removed (in git
   history).
 
 ### D3 — Study period 2016-2025 (2026-11-16, owner's choice)
@@ -116,7 +116,7 @@ the decision of an old entry — add a new entry that replaces it.
   enters at once (formation = the last close), so that the forward test starts without a wait of two weeks.
 - **Execution:** VWAP, the best schedule in the execution study (Step 4). Child market orders in the 5-minute
   buckets of the first hour, sized by the pooled first-hour volume profile of the Step 4 minute bars
-  (`live.portfolio.FIRST_HOUR_PROFILE`). A job that starts late uses the buckets that are left; after the first
+  (`live.order_planning.FIRST_HOUR_PROFILE`). A job that starts late uses the buckets that are left; after the first
   hour it uses 6 buckets of 5 minutes. A long-to-short flip is closed in the first bucket and opened over the rest
   (Alpaca rejects an order that crosses zero).
 - **State:** Alpaca is the record of trades (orders, positions, portfolio history). Report scores are kept in an
@@ -147,16 +147,16 @@ the decision of an old entry — add a new entry that replaces it.
   so learning from the desk's own fills would learn the simulator, not the market.
 - **Decision:** the signal and portfolio rules stay fixed. Before each rebalance the desk learns the first-hour
   volume profile (12 buckets of 5 minutes) from the last 20 sessions of real SIP minute bars of its 30 largest
-  trades (`live.portfolio.learned_profile`), and uses it for the VWAP child orders. With fewer than 200
+  trades (`live.order_planning.learned_profile`), and uses it for the VWAP child orders. With fewer than 200
   stock-days, or if the bars cannot be read, it uses the Step 4 profile. The profile is kept in the rebalance log
   and shown on the page.
 - **Rejected:** re-training PPO on live fills (simulated fills; PPO lost to VWAP in Step 4); changing the signal.
 
 ### D17 — The trade run as a tested library; catch-up and reconciliation (2026-11-17)
-- **Context:** the engineering review (2026-11-17) found that the trade orchestration in `scripts/live.py` had no
+- **Context:** the engineering review (2026-11-17) found that the trade orchestration in `scripts/live_desk.py` had no
   tests, that a missed window was reported as healthy and skipped a whole month, and that nothing checked the book
   after a run.
-- **Decision:** `live.runner` holds the run with injected broker, clock, data and store; `scripts/live.py` only
+- **Decision:** `live.rebalance` holds the run with injected broker, clock, data and store; `scripts/live_desk.py` only
   wires the real ones. A rebalance is due in the first 3 sessions of a month until a run completes; "completes"
   means its record has the final reconciliation, so a run that died half way is finished by the next run. A due
   rebalance outside the window is an error on the page. A run is ok only with 0 rejected orders and at least 90%
@@ -166,18 +166,18 @@ the decision of an old entry — add a new entry that replaces it.
 - **Parity with the study (`tests/test_parity.py`, local data):** for four month-ends (2017, 2019, 2023, 2025)
   the live code picks the same report and gives the same `composite` and quintile as the study panel. The test
   found one difference: the study breaks quintile ties by dollar-volume order, the live code broke them by symbol
-  order (78 tied values in one month). Fixed in `runner.select`. The first rebalance (2026-11-17) ran with the old
+  order (78 tied values in one month). Fixed in `rebalance.select`. The first rebalance (2026-11-17) ran with the old
   tie-break, so a few stocks at a quintile border may differ from the tested rule in that month only.
 
 ### D18 — An ML model of the cross-section, built as one harness (2026-11-18)
 - **Context:** the lazy-prices signal was not detected in 2022-2025. The owner asked for ML-finance methods that
   learn which stocks to trade. The model must learn from the history of all stocks, not from the desk's own ~12
   trades a year, and it must not use the test period to choose anything.
-- **Decision:** one pipeline for every model: point-in-time characteristics (`ml/characteristics.py`: 10 price, 1
+- **Decision:** one pipeline for every model: point-in-time characteristics (`return_models/stock_features.py`: 10 price, 1
   size, 6 accounting, 1 text), ranked within the month; walk-forward fits on all earlier months, refit each
-  January; the same evaluation as the signal study (`signal.study.summary`: equal-weighted quintile long-short,
+  January; the same evaluation as the signal study (`evaluation.portfolio_stats.summary`: equal-weighted quintile long-short,
   costs, IC, Fama-MacBeth, alpha). Models: ridge (baseline) and LightGBM (Gu, Kelly and Xiu 2020). The code
-  locks months after 2021 until `docs/preregistration-ml.md` is committed (`ml/split.py`).
+  locks months after 2021 until `docs/preregistration-ml.md` is committed (`return_models/holdout_lock.py`).
 - **Selection (check period only):** of `GBM_GRID`, the setting with the highest mean IC in 2020-2021 is the one
   tested. Development results (predictions 2019-2021) are in `data/ml_dev.json`.
 - **Not used:** market value and book-to-market (no share counts in the data); a neural network (the 2016-2021
@@ -193,8 +193,68 @@ the decision of an old entry — add a new entry that replaces it.
   20 sessions), smaller: 16-32-64 channels (a quarter of the paper's), about 92,000 training images (every 5th
   session, index members only), at most 5 epochs. One fit, no yearly refit: dev trains on 2016-2019 and predicts
   2020-2021; the test trains on 2016-2021 and predicts 2022-2025. Three seeds, averaged. The prediction (probability
-  of an up month) goes through `signal.study.summary` like every other model.
+  of an up month) goes through `evaluation.portfolio_stats.summary` like every other model.
 - **Compute:** about 1.2 ms per training image on the Apple GPU (M-series, `mps`), 3x faster than the CPU; one seed
   per run was meant to keep each run under 10 minutes (hard rule 7). The development runs took 4-6 min; the test
   runs (142,103 images) took 8, 14 and 8 min, so one broke the rule. A later CNN run goes to Kaggle or Actions.
-- **Lock:** `docs/preregistration-cnn.md` must be committed before `--period test` runs (`ml/split.py`).
+- **Lock:** `docs/preregistration-cnn.md` must be committed before `--period test` runs (`return_models/holdout_lock.py`).
+
+### D20 — Clear names for packages, modules and scripts (2026-11-18)
+- **Context:** the owner asked for a cleaner, more professional layout: short names such as `ml/`, `cnn.py`,
+  `split.py`, `runner.py` or `study.py` do not say what the code does.
+- **Decision:** packages and modules are named after what they hold (`text_signal/`, `evaluation/`,
+  `return_models/`; `holdout_lock.py`, `walk_forward.py`, `rebalance.py`, ...); scripts are grouped into
+  `scripts/data/` (build data files) and `scripts/studies/` (run a study), with `scripts/live_desk.py` for the live
+  job; test files follow their module. Imports inside the package are absolute. `tests/test_smoke.py` now checks
+  every `ghostdesk` import of every script, which the rename showed was untested.
+- **Records not changed:** the pre-registrations keep the names they were written with (they are timestamped
+  records); every other document uses the new names. Map:
+
+| Before | After (`src/ghostdesk/`) |
+|---|---|
+| `data/alpaca.py` | `data/alpaca_client.py` |
+| `data/calendar.py` | `data/market_calendar.py` |
+| `data/universe.py` | `data/sp500_universe.py` |
+| `data/returns.py` | `data/daily_returns.py` |
+| `data/spread.py` | `data/spread_estimate.py` |
+| `data/factors.py` | `data/fama_french.py` |
+| `filings/edgar.py` | `filings/edgar_client.py` |
+| `filings/index.py` | `filings/filing_index.py` |
+| `filings/sections.py` | `filings/report_sections.py` |
+| `signal/similarity.py` | `text_signal/text_similarity.py` |
+| `signal/features.py` | `text_signal/report_features.py` |
+| `signal/panel.py` | `text_signal/stock_month_panel.py` |
+| `signal/study.py` | `evaluation/portfolio_stats.py` |
+| `execution/benchmarks.py` | `execution/schedules.py` |
+| `execution/impact.py` | `execution/impact_simulator.py` |
+| `execution/replay.py` | `execution/replay_simulator.py` |
+| `execution/env.py` | `execution/trading_env.py` |
+| `execution/realism.py` | `execution/realism_checks.py` |
+| `rl/ppo.py` | `execution/ppo_agent.py` |
+| `live/broker.py` | `live/alpaca_broker.py` |
+| `live/signal.py` | `live/live_signal.py` |
+| `live/portfolio.py` | `live/order_planning.py` |
+| `live/runner.py` | `live/rebalance.py` |
+| `live/site.py` | `live/dashboard_data.py` |
+| `ml/characteristics.py` | `return_models/stock_features.py` |
+| `ml/split.py` | `return_models/holdout_lock.py` |
+| `ml/models.py` | `return_models/walk_forward.py` |
+| `ml/charts.py` | `return_models/chart_images.py` |
+| `ml/cnn.py` | `return_models/chart_cnn.py` |
+
+| Before | After |
+|---|---|
+| `scripts/build_universe.py` | `scripts/data/build_universe.py` |
+| `scripts/build_filings_index.py` | `scripts/data/build_filing_index.py` |
+| `scripts/load_prices.py` | `scripts/data/load_prices.py` |
+| `scripts/load_minutes.py` | `scripts/data/load_minute_bars.py` |
+| `scripts/extract_features.py` | `scripts/data/extract_text_features.py` |
+| `scripts/collect_features.py` | `scripts/data/merge_feature_shards.py` |
+| `scripts/signal_study.py` | `scripts/studies/run_signal_study.py` |
+| `scripts/pitfalls.py` | `scripts/studies/run_pitfall_table.py` |
+| `scripts/execution_study.py` | `scripts/studies/run_execution_study.py` |
+| `scripts/execution_summary.py` | `scripts/studies/summarize_execution_study.py` |
+| `scripts/capacity.py` | `scripts/studies/run_capacity.py` |
+| `scripts/ml_study.py` | `scripts/studies/run_ml_study.py` |
+| `scripts/cnn_study.py` | `scripts/studies/run_cnn_study.py` |
+| `scripts/live.py` | `scripts/live_desk.py` |

@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 from gymnasium.utils.env_checker import check_env
 
-from ghostdesk.execution.benchmarks import (
+from ghostdesk.execution.impact_simulator import ImpactSimulator
+from ghostdesk.execution.schedules import (
     ACParams,
     almgren_chriss,
     cost_variance,
@@ -12,8 +13,7 @@ from ghostdesk.execution.benchmarks import (
     twap,
     vwap,
 )
-from ghostdesk.execution.env import ExecutionEnv, run_schedule
-from ghostdesk.execution.impact import ImpactSimulator
+from ghostdesk.execution.trading_env import ExecutionEnv, run_schedule
 
 # the worked example of Almgren and Chriss (2000): S0 = 50, sigma = 0.95 per day, 1e6 shares over 5 days
 P = ACParams(sigma=0.95, gamma=2.5e-7, eta=2.5e-6, eps=0.0625, T=5.0, N=5)
@@ -79,9 +79,9 @@ def test_same_seed_same_episode():
 
 
 def test_price_blind_observation_hides_the_price():
-    from ghostdesk.execution.benchmarks import ACParams
-    from ghostdesk.execution.env import ExecutionEnv
-    from ghostdesk.execution.impact import ImpactSimulator
+    from ghostdesk.execution.impact_simulator import ImpactSimulator
+    from ghostdesk.execution.schedules import ACParams
+    from ghostdesk.execution.trading_env import ExecutionEnv
 
     p = ACParams(sigma=0.95, gamma=2.5e-7, eta=2.5e-6, eps=0.0625, T=5.0, N=20)
     seen, blind = (ExecutionEnv(ImpactSimulator(p, S0=50.0, beta=1.0), X=1e6, observe_price=o) for o in (True, False))

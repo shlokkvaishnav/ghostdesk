@@ -11,7 +11,7 @@
 
 ## Tests
 - Every rule that protects against look-ahead, survivorship or a data error has a unit test on a small made-up
-  table (see `tests/test_universe.py`, `tests/test_returns.py`, `tests/test_xbrl.py`).
+  table (see `tests/test_sp500_universe.py`, `tests/test_daily_returns.py`, `tests/test_xbrl.py`).
 - A bug found in real data gets a test that reproduces it before the fix (named after the case, e.g. ARNC, DOW).
 - `tests/test_docs.py` keeps the developer docs true to the code.
 

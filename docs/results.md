@@ -47,7 +47,7 @@ IC by year: 2016 +0.038, 2017 +0.029, 2018 +0.018, 2019 -0.008, 2020 -0.012, 202
 
 ## How much common backtest mistakes change the result (2016-2021)
 Each row turns off one guard of the data pipeline and runs the same study again (`composite`, equal-weighted
-long-short, gross, before the test period). Source: `scripts/pitfalls.py`.
+long-short, gross, before the test period). Source: `scripts/studies/run_pitfall_table.py`.
 
 | Variant | Long-short %/month | t | IC | Change vs baseline (pp) | Stock-months |
 |---|---|---|---|---|---|
@@ -88,7 +88,7 @@ a 95% interval clustered by day. 600,000 training steps per seed.
 | Smaller | 1 | 7.35 | +0.28 | +0.27, +0.33, +0.25 | +0.16 | 1 / 0 |
 | Smaller | 5 | 18.69 | +1.13 | +0.73, +1.18, +1.48 | +1.15 | 3 / 3 |
 
-No seed, group or size has an agent significantly cheaper than VWAP. Source: `scripts/execution_summary.py`.
+No seed, group or size has an agent significantly cheaper than VWAP. Source: `scripts/studies/summarize_execution_study.py`.
 
 ## A process error, reported
 The first PPO version was evaluated on 2024 directly. It was also worse than VWAP (all stocks, 5% of volume:
@@ -117,7 +117,7 @@ model of the same inputs, but not significantly.
 ## The test
 Rules fixed in [the ML pre-registration](preregistration-ml.md) (commit `e41120d`, OpenTimestamps proof
 `preregistration-ml.md.ots`). The code gave the models no month after 2021 until that file was committed
-(`ml/split.py`). Run once on 2026-11-18. Formation months 2022-01 to 2025-11 (47), Newey-West t (3 lags).
+(`return_models/holdout_lock.py`). Run once on 2026-11-18. Formation months 2022-01 to 2025-11 (47), Newey-West t (3 lags).
 
 | ID | Hypothesis | Estimate | t | 95% CI | Holm p |
 |---|---|---|---|---|---|

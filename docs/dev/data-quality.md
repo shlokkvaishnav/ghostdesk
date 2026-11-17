@@ -40,7 +40,7 @@ features, **P** prices, **O** operations. Status: **fixed**, **mitigated** (redu
 
 ---
 
-## Universe (`data/universe.py`, `scripts/build_universe.py`)
+## Universe (`data/sp500_universe.py`, `scripts/data/build_universe.py`)
 
 ### U1 — Tickers are reused by other companies (fixed)
 - **Seen:** `AAL` was one company in 1996-1997 and American Airlines Group from 2015.
@@ -130,7 +130,7 @@ features, **P** prices, **O** operations. Status: **fixed**, **mitigated** (redu
 - **Seen:** risk factors found in 11% and MD&A in 31% of Apple's reports.
 - **Cause:** the old text extractor started a new line at every element, so `<span>Item</span> <span>1A.</span>`
   became two lines and the heading pattern failed.
-- **Fix:** `signal.features.prose` (lxml) starts lines only at block elements and drops number tables but keeps
+- **Fix:** `text_signal.report_features.prose` (lxml) starts lines only at block elements and drops number tables but keeps
   layout tables. Result on the full run: 10-K risk 95.4%, MD&A 88.4%; 10-Q MD&A 94.7%.
 
 ### F3 — Cross-references taken as section headings (fixed)
@@ -166,7 +166,7 @@ features, **P** prices, **O** operations. Status: **fixed**, **mitigated** (redu
 - Shares outstanding are not extracted, so market value is not available from the features. Adding
   `dei:EntityCommonStockSharesOutstanding` to `ITEMS` would need a new `features` run.
 
-## Prices (`data/alpaca.py`, `data/returns.py`, `scripts/load_prices.py`)
+## Prices (`data/alpaca_client.py`, `data/daily_returns.py`, `scripts/data/load_prices.py`)
 
 ### P1 — Old ticker symbols carry stale or foreign prices (fixed)
 - **Seen:** FB's 2018 closes 1.3% below META's for the same days; FB has bars up to 2025. PARA's series fell from
@@ -220,8 +220,8 @@ features, **P** prices, **O** operations. Status: **fixed**, **mitigated** (redu
 
 ### O1 — Long workflow green although a step may fail (mitigated)
 - **Cause:** `continue-on-error` (needed so that runs send no failure email) makes every run green.
-- **Mitigation:** check step results by API and run `collect_features.py`, which fails if any report is missing.
+- **Mitigation:** check step results by API and run `merge_feature_shards.py`, which fails if any report is missing.
 
 ### O2 — Artifact download timed out (fixed)
 - **Seen:** `gh run download` stopped on shard 5 with a TCP timeout.
-- **Fix:** `collect_features.py` downloads shard by shard, skips shards present, and tries each again up to 3 times.
+- **Fix:** `merge_feature_shards.py` downloads shard by shard, skips shards present, and tries each again up to 3 times.

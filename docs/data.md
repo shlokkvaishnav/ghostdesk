@@ -23,7 +23,7 @@ members. This prevents survivorship bias.
 ticker is not an identity. Each report from the SEC is filed under a CIK (a fixed company number), so each
 membership interval must get the correct CIK.
 
-**The method** (`ghostdesk.data.universe`, run by `scripts/build_universe.py`):
+**The method** (`ghostdesk.data.sp500_universe`, run by `scripts/data/build_universe.py`):
 1. Collect candidate CIKs for each interval:
    - the CIK in the current-members table (only for an interval that has not ended);
    - each SEC entity whose name is the same as the name recorded when the ticker was added or removed
@@ -56,7 +56,7 @@ membership interval must get the correct CIK.
    before its CIK's first 10-K or 10-Q (`valid_from`).
 7. An interval that stays empty or ambiguous is **not guessed**. It stays unmapped, and it is counted below.
 
-Each rule has a unit test on a small table (`tests/test_universe.py`). Samples of the result were checked by hand
+Each rule has a unit test on a small table (`tests/test_sp500_universe.py`). Samples of the result were checked by hand
 against the SEC entity names; these checks found the errors that rules 4-6 now prevent.
 
 ## Coverage, 2010-2025
@@ -111,12 +111,12 @@ The SEC submissions JSON gives each report's `acceptanceDateTime` in UTC. This w
 header, which gives New York time (Apple 10-K, 2024: header 06:01:36 New York, JSON 10:01:36 UTC).
 
 **Rule:** a report can be used at the first NYSE open (09:30 New York) that is strictly after the acceptance time
-(`ghostdesk.data.calendar.first_open_after`). A report accepted at 16:05 is used at the next day's open. A report
+(`ghostdesk.data.market_calendar.first_open_after`). A report accepted at 16:05 is used at the next day's open. A report
 accepted at 08:00 is used at 09:30 on the same day.
 
 ## Report index
-`scripts/build_filings_index.py` lists every 10-K and 10-Q (and their amendments) of the mapped CIKs since 2009,
-from the SEC submissions JSON (`ghostdesk.filings.index`).
+`scripts/data/build_filing_index.py` lists every 10-K and 10-Q (and their amendments) of the mapped CIKs since 2009,
+from the SEC submissions JSON (`ghostdesk.filings.filing_index`).
 
 | | |
 |---|---|
@@ -132,8 +132,8 @@ paired, because an amendment often changes only a few items. A check stops the b
 a later one.
 
 ## Text-change features
-For each paired report, `scripts/extract_features.py` (run by the `features` workflow) keeps only numbers, not the
-text (`ghostdesk.signal.features`):
+For each paired report, `scripts/data/extract_text_features.py` (run by the `features` workflow) keeps only numbers, not the
+text (`ghostdesk.text_signal.report_features`):
 - **Text:** the report's main document, with number tables removed (layout tables that hold text are kept). New
   lines come only from block elements, so a heading split over several HTML elements stays one line, and line
   wraps in the HTML source do not cut sentences.
@@ -169,7 +169,7 @@ text (`ghostdesk.signal.features`):
 - Reports before mid-2009 often have no XBRL; their numbers are NaN.
 
 ## Prices
-`scripts/load_prices.py` gets daily bars from Alpaca (free plan, all US exchanges, history from 2016), adjusted for
+`scripts/data/load_prices.py` gets daily bars from Alpaca (free plan, all US exchanges, history from 2016), adjusted for
 splits and dividends, and also raw. They are kept in `data/` (not in git).
 
 **Prices follow the company, not the old ticker.** Alpaca keeps a company's history under its current ticker

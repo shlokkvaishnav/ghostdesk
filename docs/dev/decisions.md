@@ -161,3 +161,8 @@ the decision of an old entry — add a new entry that replaces it.
   of the stocks within 20% of their target value.
 - **Tests:** a month-start day, a rerun the same day (no orders, record unchanged), a missed window and its
   catch-up, a run killed half way and its completion (no order-ID clash), an empty account mid-month, the gate.
+- **Parity with the study (`tests/test_parity.py`, local data):** for four month-ends (2017, 2019, 2023, 2025)
+  the live code picks the same report and gives the same `composite` and quintile as the study panel. The test
+  found one difference: the study breaks quintile ties by dollar-volume order, the live code broke them by symbol
+  order (78 tied values in one month). Fixed in `runner.select`. The first rebalance (2026-11-17) ran with the old
+  tie-break, so a few stocks at a quintile border may differ from the tested rule in that month only.

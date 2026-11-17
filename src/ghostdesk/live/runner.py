@@ -88,8 +88,11 @@ def formation(sessions: pd.DataFrame, today: pd.Timestamp, members: pd.DataFrame
 
 
 def select(f: pd.DataFrame, dollar_volume: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
-    """One class per company, `composite` and quintile; sides: +1 long (Q5), -1 short (Q1), 0."""
+    """One class per company, `composite` and quintile; sides: +1 long (Q5), -1 short (Q1), 0. Rows are in
+    dollar-volume order (high first) before the quintiles, because the study's panel is in that order and
+    `quintile` breaks ties by order (found by tests/test_parity.py: 78 tied values in one month)."""
     one = one_class_per_company(f, dollar_volume).dropna(subset=[FULL[0]]).copy()
+    one = one.iloc[np.argsort(-one["symbol"].map(dollar_volume).fillna(-1.0).to_numpy(), kind="stable")]
     one["composite"] = composite(one).to_numpy()
     one["q"] = quintile(one["composite"]).to_numpy()
     sides = pd.Series(np.where(one["q"] == 5, 1, np.where(one["q"] == 1, -1, 0)), index=one["symbol"])

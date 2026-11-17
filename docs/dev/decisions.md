@@ -127,8 +127,10 @@ the decision of an old entry — add a new entry that replaces it.
   `rebalance_<date>_<HHMM>.json` and uses order IDs with its own start time (amended 2026-11-17 after review).
 - **Broker limits:** at most 170 requests a minute from the client (Alpaca allows 200); 429 and 5xx answers are
   retried for about 2 minutes; only a 4xx rejection stops a stock for the rest of the run.
-- **Schedule (UTC):** `score+site` at 21:40 each weekday (after the close). `trade` at 13:40, 14:40, 15:40 each
-  weekday (changed on 2026-11-17 from days 1-7, so the first run on the empty account starts with no manual step);
+- **Schedule (UTC):** `score+site` at 21:40 and again at 23:40 each weekday (after the close). `trade` every 20
+  minutes from 13:05 to 16:45 each weekday (changed on 2026-11-17: on the first trade day GitHub started none of
+  the three timed runs at 13:40, 14:40, 15:40, and the trade was dispatched by hand at 14:47; more runs make a
+  dropped run harmless, and a rerun trades nothing);
   the script trades only on the first session of a month (or on an empty account), and only between the open and
   150 minutes after it, so the two time zones of New York (EST, EDT) need no change. Other runs stop in seconds.
 - **Stop:** repository variable `TRADING=off` stops every new order (the page shows "trading is off"); the mode

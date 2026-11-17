@@ -10,10 +10,9 @@
 name: live
 on:
   schedule:
-    - cron: "40 21 * * 1-5"
-    - cron: "40 13 * * 1-5"
-    - cron: "40 14 * * 1-5"
-    - cron: "40 15 * * 1-5"
+    - cron: "40 21 * * 1-5"         # score after the close
+    - cron: "40 23 * * 1-5"         # second score (a GitHub schedule can be dropped; a rerun scores only new pairs)
+    - cron: "5,25,45 13-16 * * 1-5" # trade checks every 20 min (a rerun trades nothing)
   push:
     branches: [main]
     paths: ["docs/**", "web/**", "mkdocs.yml", ".github/workflows/live.yml"]
@@ -50,7 +49,7 @@ jobs:
           INPUT_MODE: ${{ inputs.mode }}
         run: |
           case "$EVENT:$SCHEDULE" in
-            "schedule:40 21 * * 1-5") m=score ;;
+            "schedule:40 21 * * 1-5"|"schedule:40 23 * * 1-5") m=score ;;
             schedule:*) m=trade ;;
             workflow_dispatch:*) m="$INPUT_MODE" ;;
             *) m=site ;;

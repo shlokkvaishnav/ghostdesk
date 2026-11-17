@@ -37,7 +37,7 @@ Updated 2026-11-17. Steps follow [docs/plan.md](../plan.md).
 | Library `live/` (broker, signal, portfolio, runner, site) and `scripts/live.py` | done; `tests/test_live.py`, end-to-end `tests/test_runner.py`, live-vs-study `tests/test_parity.py` |
 | Workflow `live.yml`, page `web/`, state in cache + release `live-state` | done; kill switch `TRADING=off`, `flatten` mode |
 | Full score on Actions | done (run 44035365279) |
-| First rebalance | 2026-11-17, 14:40 UTC run |
+| First rebalance | done 2026-11-17 (run 44106927337, dispatched by hand: no timed run started): 1,366 orders, 0 rejected, 198/198 stocks on target |
 
 ## Step 6 — write-up (done)
 - [Research note](../note.md) and [Engineering](../engineering.md) page.

@@ -14,7 +14,9 @@ from ghostdesk.live.portfolio import (
     per_name_value,
     split,
     target_shares,
+    too_expensive,
     trades,
+    unit_of,
 )
 from ghostdesk.live.signal import composite, current_members, latest_pairs, one_class_per_company, quintile
 from ghostdesk.signal.study import add_signals
@@ -69,9 +71,19 @@ def test_members_from_wikipedia_table_and_share_classes():
 
 def test_target_shares_equal_value_whole_shares():
     sides = pd.Series({"A": 1, "B": 1, "C": -1, "D": 0})
-    t = target_shares(sides, pd.Series({"A": 10.0, "B": 33.0, "C": 50.0, "D": 1.0}), equity=1000)
+    t = target_shares(sides, pd.Series({"A": 10.0, "B": 33.0, "C": 50.0, "D": 1.0}), equity=1000, leg=0.5)
     assert t == {"A": 25, "B": 8, "C": -10}
-    assert per_name_value(sides, 1000) == 250
+    assert per_name_value(sides, 1000, leg=0.5) == 250
+
+
+def test_fractional_longs_keep_expensive_stocks_and_shorts_stay_whole():
+    sides = pd.Series({"NVR": 1, "A": 1, "AZO": -1, "C": -1})
+    prices = pd.Series({"NVR": 7000.0, "A": 33.0, "AZO": 4000.0, "C": 333.0})
+    t = target_shares(sides, prices, equity=2000, leg=0.9, fractional={"NVR", "A", "AZO"})
+    assert t["NVR"] == pytest.approx(900 / 7000, abs=1e-4) and t["A"] == pytest.approx(27.2727, abs=1e-4)
+    assert t["C"] == -3.0 and "AZO" not in t  # a short is whole shares: 900 / 4000 rounds to 0
+    assert too_expensive(sides, t, prices) == ["AZO"]
+    assert unit_of("NVR", 0, t["NVR"], {"NVR"}) == 0.0001 and unit_of("C", 0, -3, {"C"}) == 1.0
 
 
 def test_trades_skip_small_changes_but_always_close_and_flip():
@@ -97,16 +109,22 @@ def test_split_is_exact():
         assert sum(parts) == q and min(parts) >= 0
 
 
-@pytest.mark.parametrize("cur,tgt", [(10, 30), (30, 10), (-10, -40), (10, 0), (0, -7), (12, -9), (-5, 8)])
-def test_child_orders_reach_target_and_never_cross_zero(cur, tgt):
-    for w in ([1.0], [0.5, 0.5], [0.2] * 5):
+@pytest.mark.parametrize("cur,tgt,unit", [(10, 30, 1), (30, 10, 1), (-10, -40, 1), (10, 0, 1), (0, -7, 1),
+                                          (12, -9, 1), (-5, 8, 1), (0, 0.1286, 1e-4), (2.5, 0, 1e-4),
+                                          (1.75, -3, 1e-4), (-2, 0.3333, 1e-4)])
+def test_child_orders_reach_target_and_never_cross_zero(cur, tgt, unit):
+    if unit != 1:
+        unit = unit_of("X", cur, tgt, {"X"})  # the unit the trade mode uses
+    for w in ([1.0], [0.5, 0.5], [0.2] * 5, list(FIRST_HOUR_PROFILE)):
         pos = cur
-        for bucket in child_orders(cur, tgt, w):
+        for bucket in child_orders(cur, tgt, w, unit):
             for q in bucket:
                 new = pos + q
                 assert pos == 0 or new == 0 or np.sign(new) == np.sign(pos), (pos, q)
+                if q < 0 and new < 0:
+                    assert q == round(q), "a sale that opens or adds to a short is whole shares"
                 pos = new
-        assert pos == tgt
+        assert pos == pytest.approx(tgt, abs=1e-9)
 
 
 class FakeResponse:
@@ -180,3 +198,11 @@ def test_report_scores_rank_latest_pair_per_member():
     r = report_scores(s, m, at)
     assert len(r) == 7 and "old" not in set(r["accession"])
     assert r.set_index("symbol")["q"]["G"] == 5 and r.set_index("symbol")["q"]["A"] == 1
+
+
+def test_close_all_cancels_orders_and_closes_positions():
+    s = FakeSession([FakeResponse(207, [{"symbol": "A", "status": 200}])])
+    out = Broker(headers={}, session=s).close_all()
+    method, url, kw = s.calls[0]
+    assert method == "DELETE" and url.endswith("/positions") and kw["params"] == {"cancel_orders": "true"}
+    assert out == [{"symbol": "A", "status": 200}]

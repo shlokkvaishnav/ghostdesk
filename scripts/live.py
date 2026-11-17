@@ -7,6 +7,9 @@ with an error code (silent automation: the site shows the health).
   trade   on the first session of a month (or the first run on an empty account), between the open and 150
           minutes after it: quintiles of `composite` at the last close, targets, and VWAP child orders over the
           buckets left in the first hour. Elsewhere it does nothing. --dry-run prints the plan, sends no order.
+  flatten close every position and cancel open orders (market orders; the strategy stops until the next run of
+          `trade` on an empty account, so set the repository variable TRADING=off first to keep it stopped).
+  off     record that trading is switched off (repository variable TRADING=off); sends nothing.
   site    data for the web page: site-data/live.json (account, equity against SPY, positions, new reports,
           rebalances, health). No raw prices, only what the page shows.
 
@@ -33,7 +36,9 @@ from ghostdesk.live.portfolio import (
     per_name_value,
     side_of,
     target_shares,
+    too_expensive,
     trades,
+    unit_of,
 )
 from ghostdesk.live.signal import (
     WIKI_CURRENT,
@@ -50,9 +55,10 @@ LIVE = DATA_DIR / "live"
 SITE_DATA = REPO_ROOT / "site-data"
 START = "2026-11-16"  # the paper account was opened on this day
 WINDOW_MIN = 150
+LEG = 0.9  # each leg 90% of equity: gross 1.8x, inside the 2x margin with room for price moves (D15)
 
 ap = argparse.ArgumentParser()
-ap.add_argument("mode", choices=["score", "trade", "site"])
+ap.add_argument("mode", choices=["score", "trade", "flatten", "off", "site"])
 ap.add_argument("--dry-run", action="store_true")
 ap.add_argument("--per-sec", type=float, default=5.0)
 ap.add_argument("--limit", type=int, default=0, help="score: only the first N companies (a local test)")
@@ -188,31 +194,41 @@ def trade() -> None:
     one["composite"] = composite(one).to_numpy()
     one["q"] = quintile(one["composite"]).to_numpy()
     sides = pd.Series(np.where(one["q"] == 5, 1, np.where(one["q"] == 1, -1, 0)), index=one["symbol"])
-    shortable = {s: _can_short(broker, s) for s in sides[sides == -1].index}
-    sides[[s for s, ok in shortable.items() if not ok]] = 0
-    prices = pd.Series(broker.latest_prices(sides[sides != 0].index.tolist() + list(broker.positions())))
-    equity = float(account["equity"])
-    target = target_shares(sides, prices, equity)
-    per = per_name_value(sides, equity)
     current = broker.positions()
+    assets = {s: _asset(broker, s) for s in sorted(set(sides[sides != 0].index) | set(current))}
+    shortable = {s: bool(assets[s].get("shortable") and assets[s].get("easy_to_borrow"))
+                 for s in sides[sides == -1].index}
+    sides[[s for s, ok in shortable.items() if not ok]] = 0
+    fractional = {s for s, a in assets.items() if a.get("fractionable")}
+    prices = pd.Series(broker.latest_prices(sorted(assets)))
+    equity = float(account["equity"])
+    target = target_shares(sides, prices, equity, leg=LEG, fractional=fractional)
+    per = per_name_value(sides, equity, leg=LEG)
     plan = trades(target, current, prices, per)
+    gross = {k: sum(abs(q) * float(prices.get(s, 0)) for s, q in target.items() if np.sign(q) == sign) / equity
+             for k, sign in (("long", 1), ("short", -1))}
     weights = buckets_left(minutes)
     log = {"date": f"{today:%Y-%m-%d}", "formation_close": prev_close.isoformat(), "equity": equity,
            "first_run": bool(first_run), "stocks_with_signal": len(one), "missing_scores": missing,
            "long": int((sides == 1).sum()), "short": int((sides == -1).sum()),
            "not_shortable": [s for s, ok in shortable.items() if not ok], "start_minute": round(minutes, 1),
            "buckets": [b for b, _ in weights], "arrival": {s: float(prices[s]) for s in plan if s in prices},
-           "target": {s: int(q) for s, q in target.items()},
+           "target": {s: float(q) for s, q in target.items()}, "leg": LEG,
+           "target_gross": {k: round(v, 4) for k, v in gross.items()},
+           "too_expensive": too_expensive(sides, target, prices),
            "signal": one[["symbol", "form", "composite", "q"]].to_dict("records"), "orders": []}
     print(f"rebalance {today:%Y-%m-%d}: {len(plan)} stocks to trade, {len(weights)} buckets from minute "
-          f"{weights[0][0]}; long {log['long']}, short {log['short']}, equity {equity:,.0f}", flush=True)
+          f"{weights[0][0]}; long {log['long']}, short {log['short']}, equity {equity:,.0f}; target gross long "
+          f"{gross['long']:.3f}, short {gross['short']:.3f}; fractional longs "
+          f"{sum(1 for s, q in target.items() if q > 0 and q != round(q))}; too expensive {log['too_expensive']}",
+          flush=True)
     if args.dry_run:
         for s, (a, b) in list(plan.items())[:15]:
             print(f"  {s:6} {a:>6} -> {b:>6}")
         return health("trade", True, f"dry run: {len(plan)} stocks would trade", dry_run=True)
 
     w = [x for _, x in weights]
-    kids = {s: child_orders(a, b, w) for s, (a, b) in plan.items()}
+    kids = {s: child_orders(a, b, w, unit_of(s, a, b, fractional)) for s, (a, b) in plan.items()}
     stopped: set[str] = set()
     for k, (start_min, _) in enumerate(weights):
         wait = (open_utc + pd.Timedelta(minutes=start_min) - now()).total_seconds()
@@ -249,12 +265,11 @@ def _dollar_volume(symbols: list[str]) -> pd.Series:
     return bars.sort_values("t").groupby("symbol")["dv"].apply(lambda s: s.tail(63).mean())
 
 
-def _can_short(broker: Broker, symbol: str) -> bool:
+def _asset(broker: Broker, symbol: str) -> dict:
     try:
-        a = broker.asset(symbol)
-        return bool(a.get("shortable") and a.get("easy_to_borrow"))
+        return broker.asset(symbol)
     except BrokerError:
-        return False
+        return {}
 
 
 def _wait_filled(broker: Broker, order_id: str, timeout_s: float = 120) -> None:
@@ -276,6 +291,17 @@ def _final_fills(broker: Broker, log: dict) -> None:
                          filled_at=r.get("filled_at"))
             except BrokerError as e:
                 o["fill_error"] = e.message
+
+
+def flatten() -> None:
+    broker = Broker()
+    before = broker.positions()
+    broker.close_all()
+    health("trade", True, f"flatten: close orders sent for {len(before)} positions", flatten=True)
+
+
+def off() -> None:
+    health("trade", True, "trading is off (repository variable TRADING=off); no order sent", off=True)
 
 
 # ---------------------------------------------------------------------------------------------------- site
@@ -310,7 +336,7 @@ def _next_rebalance(broker: Broker) -> str | None:
 
 if __name__ == "__main__":
     try:
-        {"score": score, "trade": trade, "site": site}[args.mode]()
+        {"score": score, "trade": trade, "flatten": flatten, "off": off, "site": site}[args.mode]()
     except Exception as e:  # noqa: BLE001 - silent automation: record, do not fail the workflow
         traceback.print_exc()
         health(args.mode, False, f"{type(e).__name__}: {e}")

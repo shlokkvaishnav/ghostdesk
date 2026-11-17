@@ -58,9 +58,9 @@ class Broker:
     def account(self) -> dict:
         return self._req("GET", "/account")
 
-    def positions(self) -> dict[str, int]:
-        """Symbol -> signed share count (negative = short)."""
-        return {p["symbol"]: int(float(p["qty"])) for p in self._req("GET", "/positions")}
+    def positions(self) -> dict[str, float]:
+        """Symbol -> signed share count (negative = short; fractional for fractional longs)."""
+        return {p["symbol"]: float(p["qty"]) for p in self._req("GET", "/positions")}
 
     def position_rows(self) -> list[dict]:
         return self._req("GET", "/positions")
@@ -81,13 +81,18 @@ class Broker:
                 return out
             until = page[-1]["submitted_at"]
 
-    def submit(self, symbol: str, qty: int, side: str, client_order_id: str) -> dict:
-        """A day market order for whole shares."""
+    def submit(self, symbol: str, qty: float, side: str, client_order_id: str) -> dict:
+        """A day market order; `qty` in whole shares or with up to 4 decimals (fractional, long side only)."""
         if qty <= 0 or side not in ("buy", "sell"):
             raise ValueError(f"bad order {symbol} {side} {qty}")
-        return self._req("POST", "/orders", json={"symbol": symbol, "qty": str(int(qty)), "side": side,
+        q = f"{qty:.4f}".rstrip("0").rstrip(".")
+        return self._req("POST", "/orders", json={"symbol": symbol, "qty": q, "side": side,
                                                   "type": "market", "time_in_force": "day",
                                                   "client_order_id": client_order_id})
+
+    def close_all(self) -> list:
+        """Cancel open orders and close every position at market (Alpaca DELETE /positions)."""
+        return self._req("DELETE", "/positions", params={"cancel_orders": "true"}) or []
 
     def order(self, order_id: str) -> dict:
         return self._req("GET", f"/orders/{order_id}")

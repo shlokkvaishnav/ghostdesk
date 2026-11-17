@@ -94,7 +94,10 @@ PYTHONPATH=src .venv/bin/python -u scripts/live.py score --limit 12   # local te
 PYTHONPATH=src .venv/bin/python -u scripts/live.py trade --dry-run    # the plan; never sends an order
 PYTHONPATH=src .venv/bin/python -u scripts/live.py site               # site-data/live.json
 gh workflow run live.yml -f mode=score                                # full score on Actions (about 12 min cold)
-gh workflow run live.yml -f mode=trade                                # first trade: during market hours, empty account
+gh workflow run live.yml -f mode=trade                                # trade now (only acts on a rebalance day)
+gh variable set TRADING --body off                                    # stop: no new orders from the next run
+gh workflow run live.yml -f mode=flatten                              # close every position (during market hours)
+gh variable set TRADING --body on                                     # start again
 ```
 The page source is `web/` (product page; `web/data/live.json` comes from the job). The whole site (page at the root,
 mkdocs under `/docs/`) is built and deployed only by `live.yml`. A scheduled workflow stops after 60 days without a

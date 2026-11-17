@@ -185,7 +185,7 @@ Alpaca's message. `SNAPSHOTS` is the market-data snapshot URL.
 
 | Name | Contract |
 |---|---|
-| `Broker(headers, base=PAPER, session, sleep)` | `.clock()`, `.sessions(start, end)` (`date, open_utc, close_utc`), `.account()`, `.positions()` (symbol -> signed shares), `.position_rows()`, `.orders(after, status)` (all pages), `.submit(symbol, qty, side, client_order_id)` (day market order, whole shares), `.order(id)`, `.asset(symbol)`, `.latest_prices(symbols)` (IEX last trade, for sizing only), `.history()` (`day, equity, profit_loss`, equity > 0). |
+| `Broker(headers, base=PAPER, session, sleep)` | `.clock()`, `.sessions(start, end)` (`date, open_utc, close_utc`), `.account()`, `.positions()` (symbol -> signed shares, float), `.position_rows()`, `.orders(after, status)` (all pages), `.submit(symbol, qty, side, client_order_id)` (day market order, whole shares), `.order(id)`, `.close_all()` (cancel orders, close all positions), `.asset(symbol)`, `.latest_prices(symbols)` (IEX last trade, for sizing only), `.history()` (`day, equity, profit_loss`, equity > 0). |
 | `BrokerError` | `status`, `message`. |
 
 ## ghostdesk/live/signal.py — the live signal (core)
@@ -202,12 +202,15 @@ Alpaca's message. `SNAPSHOTS` is the market-data snapshot URL.
 | Name | Contract |
 |---|---|
 | `FIRST_HOUR_PROFILE`, `BUCKET_MIN` | Mean share of first-hour volume per 5-minute bucket (Step 4 minute bars). |
-| `target_shares(sides, prices, equity, leg=0.5)` | Equal value per stock in each leg, whole shares. |
-| `per_name_value(sides, equity, leg=0.5)` | Value of one stock's target in the larger leg. |
+| `UNIT_FRACTIONAL` | 0.0001 share. |
+| `target_shares(sides, prices, equity, leg=1.0, fractional)` | Equal value per stock in each leg; longs in `fractional` to 4 decimals, others whole shares; 0 targets dropped. |
+| `too_expensive(sides, target, prices)` | Selected stocks whose whole-share target rounded to 0. |
+| `unit_of(symbol, current, target, fractional)` | Order unit: 0.0001 for a fractionable long side, else 1. |
+| `per_name_value(sides, equity, leg=1.0)` | Value of one stock's target in the larger leg. |
 | `trades(target, current, prices, per_name, min_frac=0.2)` | symbol -> (current, target); closes and flips always, other changes only if worth >= 20% of a target. |
 | `buckets_left(minutes_since_open, after_hour=6)` | (start minute, weight) of the buckets not started; weights sum to 1. |
-| `split(qty, weights)` | Whole-share parts with an exact sum. |
-| `child_orders(current, target, weights)` | Signed orders per bucket; no order crosses zero (a flip closes in bucket 0). |
+| `split(qty, weights, unit=1.0)` | Parts in multiples of `unit` with an exact sum. |
+| `child_orders(current, target, weights, unit=1.0)` | Signed orders per bucket; no order crosses zero (a flip closes in bucket 0; a new short side is whole shares). |
 | `side_of(qty)` | `buy` or `sell`. |
 
 ## ghostdesk/live/site.py — data of the web page (core)

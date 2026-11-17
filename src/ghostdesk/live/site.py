@@ -74,7 +74,7 @@ def build(account: dict, positions: list[dict], history: pd.DataFrame, spy: pd.D
         s = p["symbol"]
         info = names.loc[s] if len(names) and s in names.index else None
         pos.append({"symbol": s, "name": None if info is None else info["name"],
-                    "sector": None if info is None else info["sector"], "qty": int(float(p["qty"])),
+                    "sector": None if info is None else info["sector"], "qty": round(float(p["qty"]), 4),
                     "value": round(float(p["market_value"]), 2), "pl_pct": round(float(p["unrealized_plpc"]) * 100, 2),
                     "q": sig.get(s, {}).get("q"), "form": sig.get(s, {}).get("form")})
     reports, universe = [], []

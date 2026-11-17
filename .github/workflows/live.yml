@@ -1,23 +1,26 @@
 # The live job and the whole Pages site (decision D15). Silent: every step continues on error; the result of each
 # mode is in live.json and on the page, so a failed step sends no email.
 #   21:40 UTC weekdays        score (new reports) + site
-#   13:40/14:40/15:40, d 1-7  trade (the script trades only on the first session of a month, 0-150 min after open)
+#   13:40/14:40/15:40 wkdays  trade (the script trades only on the first session of a month or on an empty
+#                             account, 0-150 min after the open; a minute or less on other days)
+#   repo variable TRADING     "off" stops all new orders (kill switch); mode "flatten" closes every position (it
+#                             runs even when TRADING is off)
 #   push to docs/web          site only
-#   manual                    any mode (the first trade on an empty account is started by hand)
+#   manual                    any mode
 name: live
 on:
   schedule:
     - cron: "40 21 * * 1-5"
-    - cron: "40 13 1-7 * *"
-    - cron: "40 14 1-7 * *"
-    - cron: "40 15 1-7 * *"
+    - cron: "40 13 * * 1-5"
+    - cron: "40 14 * * 1-5"
+    - cron: "40 15 * * 1-5"
   push:
     branches: [main]
     paths: ["docs/**", "web/**", "mkdocs.yml", ".github/workflows/live.yml"]
   workflow_dispatch:
     inputs:
       mode:
-        description: "score, trade or site"
+        description: "score, trade, flatten or site"
         default: site
 permissions:
   contents: read
@@ -64,14 +67,18 @@ jobs:
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python -u scripts/live.py score
       - name: trade
-        if: steps.mode.outputs.mode == 'trade'
+        if: (steps.mode.outputs.mode == 'trade' && vars.TRADING != 'off') || steps.mode.outputs.mode == 'flatten'
         continue-on-error: true
         timeout-minutes: 180
         env:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
-        run: python -u scripts/live.py trade
+        run: python -u scripts/live.py ${{ steps.mode.outputs.mode }}
+      - name: trading is off
+        if: steps.mode.outputs.mode == 'trade' && vars.TRADING == 'off'
+        continue-on-error: true
+        run: python -u scripts/live.py off
       - name: site data
         continue-on-error: true
         timeout-minutes: 10

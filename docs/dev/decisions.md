@@ -108,8 +108,11 @@ the decision of an old entry — add a new entry that replaces it.
 - **Strategy:** the pre-registered portfolio, unchanged: `composite` of the latest paired report (tradeable at or
   before the formation close, at most 120 days old), quintiles across the current S&P 500 (Wikipedia list, with
   its CIK column), long Q5 and short Q1, equal weights, rebalanced on the first session of each month. Each leg is
-  50% of account equity (gross 100%). Whole shares only (Alpaca does not allow fractional short sales), so small
-  weights differ from target; the site shows target and actual. One exception: the first run, on an empty account,
+  90% of account equity (gross 1.8x, inside the account's 2x margin). Longs use fractional shares (4 decimals);
+  shorts use whole shares (Alpaca does not allow fractional short sales), so a short whose target rounds to 0
+  shares is left out and listed (`too_expensive` in the rebalance log); hard-to-borrow stocks are left out of the
+  short leg and listed (`not_shortable`). Changed on 2026-11-17, before the first trade: the first version used
+  50% legs and whole shares for longs too, and a dry run dropped 6 of 198 stocks and gave 1-3-share positions. One exception: the first run, on an empty account,
   enters at once (formation = the last close), so that the forward test starts without a wait of two weeks.
 - **Execution:** VWAP, the best schedule in the execution study (Step 4). Child market orders in the 5-minute
   buckets of the first hour, sized by the pooled first-hour volume profile of the Step 4 minute bars
@@ -120,9 +123,12 @@ the decision of an old entry — add a new entry that replaces it.
   Actions cache (`data/live/scores.parquet`); if the cache is lost, the job computes the scores again from SEC
   (about 500 report pairs). Each run is idempotent: it trades only the difference between target and position, and
   a difference below 20% of the per-stock target is not traded.
-- **Schedule (UTC):** `score+site` at 21:40 each weekday (after the close). `trade` at 13:40, 14:40, 15:40 on days
-  1-7 and on manual start; the script trades only on the first session of a month (or the first run), and only
-  between the open and 150 minutes after it, so the two time zones of New York (EST, EDT) need no change.
+- **Schedule (UTC):** `score+site` at 21:40 each weekday (after the close). `trade` at 13:40, 14:40, 15:40 each
+  weekday (changed on 2026-11-17 from days 1-7, so the first run on the empty account starts with no manual step);
+  the script trades only on the first session of a month (or on an empty account), and only between the open and
+  150 minutes after it, so the two time zones of New York (EST, EDT) need no change. Other runs stop in seconds.
+- **Stop:** repository variable `TRADING=off` stops every new order (the page shows "trading is off"); the mode
+  `flatten` closes all positions and cancels open orders, also when trading is off.
 - **Silent:** every step has `continue-on-error`; the result and any error go to `live.json`, shown on the site.
 - **Site:** one workflow builds the whole Pages site: the product page at the root (from `live.json`) and the
   mkdocs pages under `/docs/`. The old `docs.yml` is removed, so two workflows never overwrite each other.

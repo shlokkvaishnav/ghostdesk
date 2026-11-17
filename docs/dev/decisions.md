@@ -184,3 +184,16 @@ the decision of an old entry — add a new entry that replaces it.
   sample, about 30,000 training rows by 2022, is small for one); hyperparameter search on more than three settings.
 - **Order of the other methods:** the price-chart CNN (Jiang, Kelly and Xiu 2023), time-safe text embeddings, and
   risk engineering come after this, through the same harness.
+
+### D19 — The chart CNN, in the same harness (2026-11-18)
+- **Context:** the owner asked for a model that "reads the charts". Jiang, Kelly and Xiu (2023) trained a CNN on
+  price-chart images (1993-2019, all US stocks) and found strong out-of-sample results; later tests in large stocks
+  after 2020 are few.
+- **Decision:** their I20/R20 design (20-session OHLC + moving average + volume image, up/down label for the next
+  20 sessions), smaller: 16-32-64 channels (a quarter of the paper's), about 92,000 training images (every 5th
+  session, index members only), at most 5 epochs. One fit, no yearly refit: dev trains on 2016-2019 and predicts
+  2020-2021; the test trains on 2016-2021 and predicts 2022-2025. Three seeds, averaged. The prediction (probability
+  of an up month) goes through `signal.study.summary` like every other model.
+- **Compute:** about 1.2 ms per training image on the Apple GPU (M-series, `mps`), 3x faster than the CPU; one seed
+  per run keeps each run under 10 minutes (hard rule 7).
+- **Lock:** `docs/preregistration-cnn.md` must be committed before `--period test` runs (`ml/split.py`).

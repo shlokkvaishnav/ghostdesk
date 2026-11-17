@@ -86,6 +86,16 @@ PYTHONPATH=src .venv/bin/python -u scripts/ml_study.py --period test    # once, 
 - `test` refuses to run unless `docs/preregistration-ml.md` is committed with no local change (`ml/split.py`).
   **Do not run it** unless the owner asks; read [preregistration-ml.md](../preregistration-ml.md) first.
 
+### Chart-CNN study — `scripts/cnn_study.py` (decision D19)
+```bash
+PYTHONPATH=src .venv/bin/python -u scripts/cnn_study.py --period dev --seeds 0   # about 6 min; then --seeds 1, 2
+PYTHONPATH=src .venv/bin/python -u scripts/cnn_study.py --period test --seeds 0  # once per seed, after the CNN pre-registration
+```
+- One seed per run keeps each run under 10 minutes; each run evaluates the mean of all seeds saved so far.
+- Output: `data/cnn_<period>.json`, `data/cnn_predictions_<period>.parquet`, and per seed
+  `data/cnn_predictions_<period>_seed<n>.parquet`, `data/cnn_<period>_seed<n>.json`.
+- `test` refuses to run unless `docs/preregistration-cnn.md` is committed with no local change.
+
 ## 6. Execution study
 ```bash
 PYTHONPATH=src .venv/bin/python -u scripts/load_minutes.py        # 20 stocks, 2023-2024, first hour; about 4 min

@@ -134,6 +134,11 @@ Producer: `scripts/ml_study.py`. JSON: `period, prereg_commit, features` and, pe
 `by_period` (2019 and 2020-2021 in `dev`). Parquet: `month, cik, pred, fit_month, model`; key `(model, month, cik)`;
 invariant `fit_month <= month` (the model trained only on months before `fit_month`).
 
+### data/cnn_<period>.json and data/cnn_predictions_<period>[_seed<n>].parquet
+Producer: `scripts/cnn_study.py`. JSON: `period, prereg_commit, train_images, train_up_share, seeds,
+rows_with_image, val_loss` (per seed), `cnn` (the `signal.study.summary` of the mean prediction), `ic_by_month`.
+Parquet: `month, cik, pred` (mean probability of an up month; the seed files also have `seed`); key `(month, cik)`.
+
 ### data/minutes.parquet
 Producer: `scripts/load_minutes.py`. Alpaca 1-minute bars (raw), 20 stocks, 2023-2024, minutes 0-59 after 09:30.
 Key: `(symbol, t)`.

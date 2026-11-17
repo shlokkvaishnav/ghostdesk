@@ -275,3 +275,22 @@ that nothing changes).
 | `gbm(params, seeds)` | LightGBM `Fit` (native API), averaged over `SEEDS` (0, 1, 2); settings `GBM_BASE` with one entry of `GBM_GRID` (`small`, `base`, `large`). |
 | `Fit`, `Predictor` | `fit(x, y) -> predict(x_new)`. |
 | `walk_forward(panel, features, fit, first, min_train_months, refit_every)` | Out-of-sample `pred` for each month from `first`; refit every `refit_every` (12) months on all earlier months only; `fit_month` = the first month the model predicted. |
+
+## ghostdesk/ml/charts.py — price-chart images (core)
+| Name | Contract |
+|---|---|
+| `DAYS`, `HEIGHT`, `WIDTH`, `PRICE_ROWS`, `VOLUME_ROWS` | 20 sessions; 64 x 60 pixels; 51 price rows, 1 gap row, 12 volume rows. |
+| `matrices(prices, returns)` | Session x symbol matrices of adjusted o, h, l, c, v, the 20-session moving average and `bad` (flag or missing bar). |
+| `windows(mats, symbols, end_pos, start_pos)` | Arrays (n, 20) for each window ending on a session, and the mask of valid windows (no bad day, a full moving average, inside the index interval). |
+| `draw(arr)` | Images (n, 64, 60) uint8: open tick, high-low bar, close tick per session; moving average; volume bars. |
+
+## ghostdesk/ml/cnn.py — the chart CNN (core)
+| Name | Contract |
+|---|---|
+| `STEP`, `SEEDS`, `TRAIN` | Training image every 5 sessions; seeds 0, 1, 2; Adam 1e-4, batch 128, at most 5 epochs, patience 2, 30% early-stopping split, channels (16, 32, 64), dropout 0.5. |
+| `training_images(mats, members, first, last, label_end, step)` | Images, 0/1 labels (next 20 sessions up) and keys, for members only; every label window ends by `label_end`. |
+| `prediction_images(mats, panel, members)` | Images ending on each panel row's formation session, and the mask of rows with one. |
+| `net(channels, dropout)` | The network: 3 x (5x3 conv, batch norm, leaky ReLU, 2x1 max pool), dropout, linear to 2 classes. |
+| `device()` | Apple GPU (`mps`), else CUDA, else CPU. |
+| `fit(images, labels, seed, cfg, log)` | One network with early stopping; returns (model, validation-loss history). |
+| `predict(models, images)` | Mean probability of an up move. |

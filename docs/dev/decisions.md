@@ -149,3 +149,15 @@ the decision of an old entry — add a new entry that replaces it.
   stock-days, or if the bars cannot be read, it uses the Step 4 profile. The profile is kept in the rebalance log
   and shown on the page.
 - **Rejected:** re-training PPO on live fills (simulated fills; PPO lost to VWAP in Step 4); changing the signal.
+
+### D17 — The trade run as a tested library; catch-up and reconciliation (2026-11-17)
+- **Context:** the engineering review (2026-11-17) found that the trade orchestration in `scripts/live.py` had no
+  tests, that a missed window was reported as healthy and skipped a whole month, and that nothing checked the book
+  after a run.
+- **Decision:** `live.runner` holds the run with injected broker, clock, data and store; `scripts/live.py` only
+  wires the real ones. A rebalance is due in the first 3 sessions of a month until a run completes; "completes"
+  means its record has the final reconciliation, so a run that died half way is finished by the next run. A due
+  rebalance outside the window is an error on the page. A run is ok only with 0 rejected orders and at least 90%
+  of the stocks within 20% of their target value.
+- **Tests:** a month-start day, a rerun the same day (no orders, record unchanged), a missed window and its
+  catch-up, a run killed half way and its completion (no order-ID clash), an empty account mid-month, the gate.

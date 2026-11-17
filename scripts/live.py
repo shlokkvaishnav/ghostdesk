@@ -4,9 +4,10 @@ with an error code (silent automation: the site shows the health).
   score   today's S&P 500 (Wikipedia), each company's report list (SEC), and the text-change features of every
           latest pair that is not in data/live/scores.parquet yet. About 2 minutes a day; about 30 minutes from
           an empty cache.
-  trade   on the first session of a month (or the first run on an empty account), between the open and 150
-          minutes after it: quintiles of `composite` at the last close, targets, and VWAP child orders over the
-          buckets left in the first hour. Elsewhere it does nothing. --dry-run prints the plan, sends no order.
+  trade   `live.runner.run_trade`: rebalances in the first sessions of a month until one run completes (or at
+          once on an empty account), from the open to 150 minutes after it: quintiles of `composite` at the
+          last close, targets, VWAP child orders, fills, and a reconciliation of the book. Elsewhere it does
+          nothing. --dry-run prints the plan and sends no order.
   flatten close every position and cancel open orders (market orders). The strategy enters again on the next
           first session of a month, so set the repository variable TRADING=off first to keep it stopped.
   off     record that trading is switched off (repository variable TRADING=off); sends nothing.
@@ -22,41 +23,24 @@ import time
 import traceback
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import requests
 
 from ghostdesk.data.alpaca import AlpacaClient
 from ghostdesk.filings.edgar import DATA_DIR, REPO_ROOT, EdgarClient, Filing, download_filing_html
 from ghostdesk.filings.index import index_for, pair_previous
-from ghostdesk.live.broker import Broker, BrokerError
-from ghostdesk.live.portfolio import (
-    buckets_left,
-    child_orders,
-    learned_profile,
-    per_name_value,
-    side_of,
-    target_shares,
-    too_expensive,
-    trades,
-    unit_of,
-)
+from ghostdesk.live.broker import Broker
+from ghostdesk.live.runner import Config, Deps, run_trade
 from ghostdesk.live.signal import (
     WIKI_CURRENT,
-    composite,
     current_members,
     latest_pairs,
-    one_class_per_company,
-    quintile,
 )
 from ghostdesk.signal.features import pair_features, parts
-from ghostdesk.signal.study import FULL
 
 LIVE = DATA_DIR / "live"
 SITE_DATA = REPO_ROOT / "site-data"
-START = "2026-11-16"  # the paper account was opened on this day
-WINDOW_MIN = 150
-LEG = 0.9  # each leg 90% of equity: gross 1.8x, inside the 2x margin with room for price moves (D15)
+START = Config().start  # the trade settings live in `live.runner.Config`
 
 ap = argparse.ArgumentParser()
 ap.add_argument("mode", choices=["score", "trade", "flatten", "off", "site"])
@@ -155,120 +139,13 @@ def _save_scores(have: pd.DataFrame, rows: list[dict], path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------------------------------- trade
-def formation(cal: pd.DataFrame, today: pd.Timestamp) -> tuple[pd.DataFrame, int, pd.Timestamp]:
-    """Members with the features of their latest pair at the last close before `today`'s session, the count of
-    pairs without features, and that close."""
-    prev_close = cal.loc[cal["date"] < today, "close_utc"].iloc[-1]
-    m = pd.read_parquet(LIVE / "members.parquet")
-    index = pd.read_parquet(LIVE / "index.parquet")
-    scores = pd.read_parquet(LIVE / "scores.parquet")
-    lp = latest_pairs(index, pd.DatetimeIndex(cal["date"]), prev_close)
-    lp = lp.merge(scores[["cik", "accession", *FULL]], on=["cik", "accession"], how="left")
-    missing = int(lp[FULL[0]].isna().sum())
-    f = m.merge(lp[["cik", "accession", "form", "tradeable", *FULL]], on="cik", how="left")
-    return f, missing, prev_close
-
-
 def trade() -> None:
+    """One trade run through `live.runner` (gate, plan, VWAP orders, fills, reconciliation)."""
     broker = Broker()
-    clock = broker.clock()
-    cal = sessions(broker)
-    t = now()
-    today_row = cal[cal["date"] == t.tz_convert("America/New_York").normalize().tz_localize(None)]
-    if today_row.empty:
-        return health("trade", True, "not a trading day")
-    today, open_utc = today_row["date"].iloc[0], today_row["open_utc"].iloc[0]
-    month_sessions = cal[cal["date"].dt.to_period("M") == today.to_period("M")]
-    first_of_month = today == month_sessions["date"].iloc[0]
-    account = broker.account()
-    first_run = not broker.positions() and not broker.orders(after=f"{START}T00:00:00Z", limit=1)
-    minutes = (t - open_utc).total_seconds() / 60
-    if not args.dry_run:  # a dry run sends no order, so it may show the plan on any day and at any time
-        if not (first_of_month or first_run):
-            return health("trade", True, f"no rebalance today ({today:%Y-%m-%d})")
-        if not clock["is_open"] or not (0 <= minutes <= WINDOW_MIN):
-            return health("trade", True, f"rebalance day, but {minutes:.0f} min from the open (window 0-{WINDOW_MIN})")
-    minutes = min(max(minutes, 0.0), WINDOW_MIN)
-
-    f, missing, prev_close = formation(cal, today)
-    one = one_class_per_company(f, _dollar_volume(f["symbol"].tolist()))
-    one = one.dropna(subset=[FULL[0]]).copy()
-    one["composite"] = composite(one).to_numpy()
-    one["q"] = quintile(one["composite"]).to_numpy()
-    sides = pd.Series(np.where(one["q"] == 5, 1, np.where(one["q"] == 1, -1, 0)), index=one["symbol"])
-    current = broker.positions()
-    assets = {s: _asset(broker, s) for s in sorted(set(sides[sides != 0].index) | set(current))}
-    shortable = {s: bool(assets[s].get("shortable") and assets[s].get("easy_to_borrow"))
-                 for s in sides[sides == -1].index}
-    sides[[s for s, ok in shortable.items() if not ok]] = 0
-    fractional = {s for s, a in assets.items() if a.get("fractionable")}
-    prices = pd.Series(broker.latest_prices(sorted(assets)))
-    equity = float(account["equity"])
-    target = target_shares(sides, prices, equity, leg=LEG, fractional=fractional)
-    per = per_name_value(sides, equity, leg=LEG)
-    plan = trades(target, current, prices, per)
-    gross = {k: sum(abs(q) * float(prices.get(s, 0)) for s, q in target.items() if np.sign(q) == sign) / equity
-             for k, sign in (("long", 1), ("short", -1))}
-    profile, profile_days = _profile(sorted(plan, key=lambda x: -abs(plan[x][1] - plan[x][0]) * prices.get(x, 0))[:30],
-                                     cal, today)
-    weights = buckets_left(minutes, profile=profile)
-    log = {"date": f"{today:%Y-%m-%d}", "formation_close": prev_close.isoformat(), "equity": equity,
-           "first_run": bool(first_run), "stocks_with_signal": len(one), "missing_scores": missing,
-           "long": int((sides == 1).sum()), "short": int((sides == -1).sum()),
-           "not_shortable": [s for s, ok in shortable.items() if not ok], "start_minute": round(minutes, 1),
-           "buckets": [b for b, _ in weights], "profile": list(profile), "profile_stock_days": profile_days, "arrival": {s: float(prices[s]) for s in plan if s in prices},
-           "target": {s: float(q) for s, q in target.items()}, "leg": LEG,
-           "target_gross": {k: round(v, 4) for k, v in gross.items()},
-           "too_expensive": too_expensive(sides, target, prices),
-           "signal": one[["symbol", "form", "composite", "q"]].to_dict("records"), "orders": []}
-    print(f"rebalance {today:%Y-%m-%d}: {len(plan)} stocks to trade, {len(weights)} buckets from minute "
-          f"{weights[0][0]}; long {log['long']}, short {log['short']}, equity {equity:,.0f}; target gross long "
-          f"{gross['long']:.3f}, short {gross['short']:.3f}; fractional longs "
-          f"{sum(1 for s, q in target.items() if q > 0 and q != round(q))}; too expensive {log['too_expensive']}",
-          flush=True)
-    if args.dry_run:
-        for s, (a, b) in list(plan.items())[:15]:
-            print(f"  {s:6} {a:>6} -> {b:>6}")
-        return health("trade", True, f"dry run: {len(plan)} stocks would trade", dry_run=True)
-
-    first_log = LIVE / f"rebalance_{today:%Y%m%d}.json"
-    run_tag = f"{now():%H%M}"
-    if first_log.exists():
-        if not plan:  # a later run on the same day: the rebalance is done; keep its record as it is
-            return health("trade", True, f"rebalance {today:%Y-%m-%d} done earlier; nothing left to trade")
-        log["rerun_of"] = first_log.name  # finish what an earlier run left; never overwrite its record
-    log_path = LIVE / f"rebalance_{today:%Y%m%d}_{run_tag}.json" if first_log.exists() else first_log
-    log["asset_lookup_failed"] = [s for s, a in assets.items() if not a]
-    w = [x for _, x in weights]
-    kids = {s: child_orders(a, b, w, unit_of(s, a, b, fractional)) for s, (a, b) in plan.items()}
-    stopped: set[str] = set()
-    for k, (start_min, _) in enumerate(weights):
-        wait = (open_utc + pd.Timedelta(minutes=start_min) - now()).total_seconds()
-        if wait > 0:
-            time.sleep(wait)
-        for s, per_bucket in kids.items():
-            for j, q in enumerate(per_bucket[k]):
-                if s in stopped:
-                    break
-                cid = f"gd-{today:%Y%m%d}-{run_tag}-{k:02d}{j}-{s}"  # unique across reruns
-                try:
-                    o = broker.submit(s, abs(q), side_of(q), cid)
-                    log["orders"].append({"symbol": s, "bucket": k, "qty": q, "id": o["id"], "status": o["status"]})
-                    if j == 0 and len(per_bucket[k]) > 1:
-                        _wait_filled(broker, o["id"])  # a flip: the close must fill before the open
-                except BrokerError as e:
-                    if e.permanent:
-                        stopped.add(s)  # a rejected order: this stock's later children would fail the same way
-                    log["orders"].append({"symbol": s, "bucket": k, "qty": q, "error": e.message,
-                                          "status_code": e.status})
-                    if not e.permanent:
-                        break  # a rate limit or server error: skip this child; the next bucket tries again
-        log_path.write_text(json.dumps(log, indent=1, default=str))
-    _final_fills(broker, log)
-    log_path.write_text(json.dumps(log, indent=1, default=str))
-    errs = sum(1 for o in log["orders"] if "error" in o)
-    health("trade", errs == 0, f"rebalance {today:%Y-%m-%d}: {len(log['orders'])} orders, {errs} rejected",
-           orders=len(log["orders"]), rejected=errs)
+    deps = Deps(broker=broker, now=now, sleep=time.sleep, dollar_volume=_dollar_volume, minute_bars=_minute_bars,
+                store=LIVE, log=lambda m: print(m, flush=True))
+    ok, message, extra = run_trade(deps, sessions(broker), Config(), dry_run=args.dry_run)
+    health("trade", ok, message, **extra)
 
 
 def _dollar_volume(symbols: list[str]) -> pd.Series:
@@ -281,47 +158,8 @@ def _dollar_volume(symbols: list[str]) -> pd.Series:
     return bars.sort_values("t").groupby("symbol")["dv"].apply(lambda s: s.tail(63).mean())
 
 
-def _profile(symbols: list[str], cal: pd.DataFrame, today: pd.Timestamp) -> tuple[tuple[float, ...], int]:
-    """D16: the volume profile of the last 20 sessions' first hour for the (up to 30) largest trades; the Step 4
-    profile if the minute bars cannot be read."""
-    past = cal[cal["date"] < today]
-    if not symbols or len(past) < 20:
-        return learned_profile(pd.DataFrame())
-    start, end = past["open_utc"].iloc[-20], past["close_utc"].iloc[-1]
-    try:
-        bars = AlpacaClient().bars(symbols, start.isoformat(), end.isoformat(), timeframe="1Min", adjustment="raw")
-    except Exception as e:  # noqa: BLE001 - execution falls back to the fixed profile
-        print(f"profile: minute bars failed ({type(e).__name__}); fixed profile", flush=True)
-        return learned_profile(pd.DataFrame())
-    return learned_profile(bars)
-
-
-def _asset(broker: Broker, symbol: str) -> dict:
-    try:
-        return broker.asset(symbol)
-    except BrokerError:
-        return {}
-
-
-def _wait_filled(broker: Broker, order_id: str, timeout_s: float = 120) -> None:
-    t0 = time.time()
-    while time.time() - t0 < timeout_s:
-        if broker.order(order_id)["status"] in ("filled", "canceled", "rejected", "expired"):
-            return
-        time.sleep(2)
-
-
-def _final_fills(broker: Broker, log: dict) -> None:
-    time.sleep(20)
-    for o in log["orders"]:
-        if "id" in o:
-            try:
-                r = broker.order(o["id"])
-                o.update(status=r["status"], filled_qty=float(r.get("filled_qty") or 0),
-                         price=float(r["filled_avg_price"]) if r.get("filled_avg_price") else None,
-                         filled_at=r.get("filled_at"))
-            except BrokerError as e:
-                o["fill_error"] = e.message
+def _minute_bars(symbols: list[str], start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    return AlpacaClient().bars(symbols, start.isoformat(), end.isoformat(), timeframe="1Min", adjustment="raw")
 
 
 def flatten() -> None:

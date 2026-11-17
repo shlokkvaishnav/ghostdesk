@@ -224,3 +224,18 @@ Alpaca's message. `SNAPSHOTS` is the market-data snapshot URL.
 | `rebalance_summary(log)` | Orders, fills, rejects, cost against the arrival price in bps (positive = paid more). |
 | `bucket_shares(log)` | Share of traded shares per bucket of a rebalance. |
 | `build(account, positions, history, spy, rebalances, scores, members, health, at, next_rebalance)` | The `live.json` dict. |
+
+## ghostdesk/live/runner.py — the trade run (core)
+All outside dependencies are injected (`Deps`), so whole runs are tested with a fake broker and clock
+(`tests/test_runner.py`).
+
+| Name | Contract |
+|---|---|
+| `Config` | Frozen settings: `leg` 0.9, `window_min` 150, `catchup_sessions` 3, `start`, `min_frac` 0.2, `profile_symbols` 30. Logged in each rebalance record. |
+| `Decision` | `trade, ok, reason, catch_up`. |
+| `decide(sessions, now, is_open, empty_account, month_done, cfg)` | The gate: due on an empty account, or in the first `catchup_sessions` sessions of a month until a run completes; a due rebalance outside the window is `ok=False`. |
+| `formation(sessions, today, members, index, scores)` | Members with their latest pair's features at the last close; count of pairs without features; that close. |
+| `select(f, dollar_volume)` | One class per company, `composite`, quintile, sides (+1 / -1 / 0). |
+| `Deps` | `broker, now, sleep, dollar_volume, minute_bars, store, log`. |
+| `month_done(store, today)` | A rebalance record of the month with a final reconciliation exists. |
+| `run_trade(deps, sessions, cfg, dry_run)` | One run: gate, plan, VWAP child orders, fills, reconciliation; returns `(ok, message, extra)`. ok needs 0 rejects and >= 90% of stocks on target. |

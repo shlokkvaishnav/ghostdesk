@@ -130,7 +130,10 @@ the decision of an old entry — add a new entry that replaces it.
 - **Schedule (UTC):** `score+site` at 21:40 and again at 23:40 each weekday (after the close). `trade` every 20
   minutes from 13:05 to 16:45 each weekday (changed on 2026-11-17: on the first trade day GitHub started none of
   the three timed runs at 13:40, 14:40, 15:40, and the trade was dispatched by hand at 14:47; more runs make a
-  dropped run harmless, and a rerun trades nothing);
+  dropped run harmless, and a rerun trades nothing). Observed on 2026-11-17: the first timed run of the new
+  schedule (a trade check due 13:05-16:45) started at 23:09 UTC, about 6 hours late, and gave the right answer
+  ("no rebalance due"); the 21:40 score run had not started by 23:35. If timed runs stay this late, a rebalance
+  can miss its window on every catch-up day; the page shows that as an error;
   the script trades only on the first session of a month (or on an empty account), and only between the open and
   150 minutes after it, so the two time zones of New York (EST, EDT) need no change. Other runs stop in seconds.
 - **Stop:** repository variable `TRADING=off` stops every new order (the page shows "trading is off"); the mode

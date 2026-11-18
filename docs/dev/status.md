@@ -50,6 +50,7 @@ Updated 2026-11-18.
 | Pre-registration `docs/preregistration-ml.md` | committed `e41120d`, OpenTimestamps proof |
 | Test 2022-2025 | **done once**: M1 -0.11%/month after 5 bps (CI [-0.72, +0.49]); IC 0.000; not detected. See [results](../results.md#results-the-ml-study). |
 | Chart CNN (D19) | pre-registered `a09bfa2`; test **done once**: C1 -0.30%/month after 5 bps (CI [-0.77, +0.17]); IC -0.008; not detected. It mostly learned short-term reversal. |
+| GitHub timed runs | first one started 2026-11-17 23:09 UTC, about 6 h late (D15); to watch before 2026-12-01 |
 | Book risk (D22) | done: volatility, beta, sector exposure of the live book on the page |
 | Text embeddings | not done (D22): needs year-by-year language models and hours of compute; low expected value |
 

@@ -280,3 +280,27 @@ the decision of an old entry — add a new entry that replaces it.
   example ChronoBERT, one model per year) and hours of compute for about 30,000 long report pairs, off the owner's
   Mac. The word-count version of the signal showed no effect in the test period and the test power is low, so one
   more test would add little. It is left as future work.
+
+### D23 — GitHub timed runs are hours late; the trade checks do not reach the window (2026-11-20)
+- **Observed (gh run list, 2026-11-17 to 2026-11-20; `github.event.schedule` read from each run log):** each
+  cron line of `live.yml` started at most **one** run a day, and every run started hours after its time:
+
+  | Cron line (UTC) | Started (UTC) | Late by at least |
+  |---|---|---|
+  | `40 21 * * 1-5` (score) | 03:08, 02:49, 02:36 next day | 5.5 h, 5.2 h, 4.9 h |
+  | `40 23 * * 1-5` (score) | 04:41, 04:28, 04:16 next day | 5.0 h, 4.8 h, 4.6 h |
+  | `5,25,45 13-16 * * 1-5` (12 trade checks) | 23:09, 21:07, 21:12 | 6.4 h, 4.4 h, 4.5 h (from the last slot, 16:45) |
+
+  The delay is not a fixed offset, and every cron string in the logs is the UTC string in the file, so it is not a
+  time-zone error. It is GitHub's queue for `schedule` events (documented: runs can be delayed under load, and
+  queued runs can be dropped); the twelve trade times of one line came as one run.
+- **Effect:** the regular close is 21:00 UTC in winter, so no timed trade check has started inside the trade
+  window (open to 150 minutes after it) since the schedule began. Without a change, the rebalance of 2026-12-01
+  is reported as missed on all three catch-up sessions, and the desk trades only when the owner dispatches it.
+  Manual dispatches and pushes start within seconds (run 44106927337).
+- **Not changed (owner decision needed):** a reliable start needs a trigger outside GitHub's schedule queue: an
+  outside timer (for example a cron service) that calls the `workflow_dispatch` API with a fine-grained token that
+  can only start workflows of this repository. That needs a new token outside GitHub. More cron lines before the
+  open would only be a guess about the delay; waiting inside a job for the open was rejected in D15.
+- **Until then:** on 2026-12-01 (or the next two sessions) run `gh workflow run live.yml -f mode=trade` between
+  14:35 and 17:00 UTC; a rerun trades nothing.

@@ -24,6 +24,7 @@ backtests be trusted?**
    real minute bars. It did not beat VWAP, so the live desk uses VWAP.
 4. **Live desk.** Each month a GitHub Actions job trades the text-change portfolio with paper money on Alpaca, in
    VWAP child orders over the first hour, checks the book against the plan, and updates a web page.
+   GitHub starts timed runs 4-6 hours late, so for now the owner starts each rebalance by hand.
 
 ## How it is built
 A desk with no person at it must be safe when things go wrong. Each guarantee has a test: no look-ahead (every

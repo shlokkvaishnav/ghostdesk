@@ -8,8 +8,8 @@ why: [decisions](dev/decisions.md).
 ```
  21:40 + 23:40 UTC each weekday            every 20 min, 13:05-16:45 UTC (trades on month start)
  ┌──────────────── score ───────────────┐   ┌──────────────────── trade ─────────────────────┐
- │ Wikipedia: today's S&P 500 (+ CIK)   │   │ gate: due? in the window? (runner.decide)       │
- │ SEC: each company's report list      │   │ formation at the last close (runner.formation)  │
+ │ Wikipedia: today's S&P 500 (+ CIK)   │   │ gate: due? in the window? (rebalance.decide)    │
+ │ SEC: each company's report list      │   │ formation at last close (rebalance.formation)   │
  │ new report pairs -> text change      │   │ quintiles -> target shares (fractional longs)   │
  └──────────────┬───────────────────────┘   │ VWAP child orders over the first hour           │
                 │                           │ fills -> reconciliation of the book             │
@@ -49,7 +49,7 @@ why: [decisions](dev/decisions.md).
 | What fails | What the system does | Where you see it |
 |---|---|---|
 | SEC or Wikipedia is down | A short stock list stops the score run and keeps yesterday's state; a company whose report list fails keeps its last index rows; a pair that fails is tried again the next day | page health, `score` message |
-| GitHub starts a run late or not at all | Twelve trade checks a day and two score runs; a missed rebalance is caught up in the next two sessions | red badge, `trade` message |
+| GitHub starts a run late or not at all | Twelve trade checks a day and two score runs; a missed rebalance is caught up in the next two sessions. In practice (decision D23) GitHub started each cron line once a day, 4-6 hours late, so the trade checks start after the close and a rebalance needs a manual dispatch | red badge, `trade` message |
 | The runner dies during a rebalance | The next run in the window finishes the trades with new order IDs | `rebalance_<date>_<time>.json` |
 | Alpaca rate limit or server error | Paced requests, retries for about two minutes, the child order is skipped and the next bucket trades | rejected count on the page |
 | A stock cannot be shorted, or is too dear for one share | Left out of the short leg and listed | rebalance record |

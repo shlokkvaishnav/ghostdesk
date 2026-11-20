@@ -196,9 +196,12 @@ def site() -> None:
     data = build(account=broker.account(), positions=positions, history=hist, spy=spy,
                  rebalances=rebal, scores=scores, members=m, health=h, at=now(),
                  next_rebalance=None if positions else _next_rebalance(broker), risk=risk)
+    message = f"live.json: {len(data['positions'])} positions, {len(data['reports'])} new reports"
+    # this run's own site record; without it the page showed the previous run's (also a stale failure)
+    data["health"] = {**h, "site": {"at": now().isoformat(timespec="seconds"), "ok": True, "message": message}}
     SITE_DATA.mkdir(exist_ok=True)
     (SITE_DATA / "live.json").write_text(json.dumps(data, separators=(",", ":"), default=str))
-    health("site", True, f"live.json: {len(data['positions'])} positions, {len(data['reports'])} new reports")
+    health("site", True, message)
 
 
 def _risk(positions: list[dict], equity: float, members: pd.DataFrame | None) -> dict | None:

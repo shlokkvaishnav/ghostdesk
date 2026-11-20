@@ -8,8 +8,8 @@ why: [decisions](dev/decisions.md).
 ```
  21:40 + 23:40 UTC each weekday            every 20 min, 13:05-16:45 UTC (trades on month start)
  ┌──────────────── score ───────────────┐   ┌──────────────────── trade ─────────────────────┐
- │ Wikipedia: today's S&P 500 (+ CIK)   │   │ gate: due? in the window? (runner.decide)       │
- │ SEC: each company's report list      │   │ formation at the last close (runner.formation)  │
+ │ Wikipedia: today's S&P 500 (+ CIK)   │   │ gate: due? in the window? (rebalance.decide)    │
+ │ SEC: each company's report list      │   │ formation at last close (rebalance.formation)   │
  │ new report pairs -> text change      │   │ quintiles -> target shares (fractional longs)   │
  └──────────────┬───────────────────────┘   │ VWAP child orders over the first hour           │
                 │                           │ fills -> reconciliation of the book             │
@@ -38,16 +38,18 @@ why: [decisions](dev/decisions.md).
 | A crash is recovered | A run that dies half way leaves no "done" mark; the next run in the window finishes the trades | `test_rebalance.py::test_a_run_that_dies_half_way_is_finished_by_the_next_run` |
 | A missed day is seen and caught up | A due rebalance outside the window is an error; the next session catches up | `test_rebalance.py::test_missed_window_is_an_error_and_the_next_session_catches_up` |
 | Orders never cross zero | A flip closes the old side first; shorts are whole shares | `test_live.py::test_child_orders_reach_target_and_never_cross_zero` (11 cases x 4 schedules) |
+| A bad stock does not stop the book | A hard-to-borrow stock is left out of the short leg; a rejected stock gets no more orders and makes the run an error; a rate-limited child order is skipped and the stock keeps trading | `test_rebalance.py::test_a_hard_to_borrow_stock_is_left_out_of_the_short_leg`, `::test_a_rejected_stock_stops_but_the_others_reach_target`, `::test_a_rate_limited_child_is_skipped_and_the_stock_keeps_trading` |
 | Rate limits respected | At most 170 requests a minute (limit 200); 429 retried; only a real rejection stops a stock | `test_live.py::test_broker_paces_requests_and_keeps_retrying_rate_limits` |
 | The book's risk is known | Each day: expected volatility (Ledoit-Wolf covariance), beta to SPY, sector net weights | `test_book_risk.py` |
 | The book matches the plan | After each run: stocks within 20% of target, value off target, gross per side | `test_live.py::test_reconcile_target_against_positions` |
+| No failure emails | Every step of the scheduled and long workflows continues on error; the kill switch gates the trade step; only the two score schedules start a score | `test_workflows.py` |
 | Docs match the code | Every module, public name and script is documented | `test_docs.py` |
 
 ## Failure modes
 | What fails | What the system does | Where you see it |
 |---|---|---|
 | SEC or Wikipedia is down | A short stock list stops the score run and keeps yesterday's state; a company whose report list fails keeps its last index rows; a pair that fails is tried again the next day | page health, `score` message |
-| GitHub starts a run late or not at all | Twelve trade checks a day and two score runs; a missed rebalance is caught up in the next two sessions | red badge, `trade` message |
+| GitHub starts a run late or not at all | Twelve trade checks a day and two score runs; a missed rebalance is caught up in the next two sessions. In practice (decision D23) GitHub started each cron line once a day, 4-6 hours late, so the trade checks start after the close and a rebalance needs a manual dispatch | red badge, `trade` message |
 | The runner dies during a rebalance | The next run in the window finishes the trades with new order IDs | `rebalance_<date>_<time>.json` |
 | Alpaca rate limit or server error | Paced requests, retries for about two minutes, the child order is skipped and the next bucket trades | rejected count on the page |
 | A stock cannot be shorted, or is too dear for one share | Left out of the short leg and listed | rebalance record |

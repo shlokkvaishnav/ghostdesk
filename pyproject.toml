@@ -7,7 +7,7 @@ dependencies = ["numpy", "pandas", "pyarrow", "requests", "gymnasium", "lxml"]
 
 [project.optional-dependencies]
 ml = ["torch", "stable-baselines3", "lightgbm"]
-dev = ["pytest", "ruff", "mkdocs-material==9.5.39", "lightgbm"]
+dev = ["pytest", "ruff", "mkdocs-material==9.5.39", "lightgbm", "pyyaml"]
 
 [build-system]
 requires = ["setuptools>=68"]

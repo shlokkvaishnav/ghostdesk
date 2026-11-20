@@ -41,6 +41,7 @@ why: [decisions](dev/decisions.md).
 | Rate limits respected | At most 170 requests a minute (limit 200); 429 retried; only a real rejection stops a stock | `test_live.py::test_broker_paces_requests_and_keeps_retrying_rate_limits` |
 | The book's risk is known | Each day: expected volatility (Ledoit-Wolf covariance), beta to SPY, sector net weights | `test_book_risk.py` |
 | The book matches the plan | After each run: stocks within 20% of target, value off target, gross per side | `test_live.py::test_reconcile_target_against_positions` |
+| No failure emails | Every step of the scheduled and long workflows continues on error; the kill switch gates the trade step; only the two score schedules start a score | `test_workflows.py` |
 | Docs match the code | Every module, public name and script is documented | `test_docs.py` |
 
 ## Failure modes

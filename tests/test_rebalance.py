@@ -55,6 +55,12 @@ class FakeBroker:
     def asset(self, s):
         return {"shortable": True, "easy_to_borrow": True, "fractionable": True}
 
+    def open_orders(self):
+        return []  # the fake fills every order at once
+
+    def cancel_open_orders(self):
+        return []
+
     def latest_prices(self, syms):
         return {s: PRICES[s] for s in syms}
 

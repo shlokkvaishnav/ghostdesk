@@ -39,17 +39,25 @@ class Broker:
         self._last = self._clock()
 
     def _req(self, method: str, path: str, **kw):
-        """Paced request. 429 and 5xx are retried for about 2 minutes; other 4xx raise at once."""
+        """Paced request. 429, 5xx and network errors (timeout, dropped connection) are retried for about
+        2 minutes; other 4xx raise at once. A retried order is safe: Alpaca accepts a client order ID once
+        (see `submit`)."""
         for attempt in range(8):
             self._pace()
-            r = self.session.request(method, self.base + path, headers=self._h(), timeout=30, **kw)
+            try:
+                r = self.session.request(method, self.base + path, headers=self._h(), timeout=30, **kw)
+            except (requests.ConnectionError, requests.Timeout) as e:
+                last = BrokerError(0, f"network: {type(e).__name__}")
+                self._sleep(min(30.0, 5.0 * (attempt + 1)))
+                continue
             if r.status_code == 429 or r.status_code >= 500:
+                last = BrokerError(r.status_code, _message(r))
                 self._sleep(min(30.0, 5.0 * (attempt + 1)))
                 continue
             if r.status_code >= 400:
                 raise BrokerError(r.status_code, _message(r))
             return r.json() if r.content else None
-        raise BrokerError(r.status_code, _message(r))
+        raise last
 
     def clock(self) -> dict:
         """`is_open`, `next_open`, `next_close`, `timestamp` (ISO strings with offset)."""
@@ -97,9 +105,26 @@ class Broker:
         if qty <= 0 or side not in ("buy", "sell"):
             raise ValueError(f"bad order {symbol} {side} {qty}")
         q = f"{qty:.4f}".rstrip("0").rstrip(".")
-        return self._req("POST", "/orders", json={"symbol": symbol, "qty": q, "side": side,
-                                                  "type": "market", "time_in_force": "day",
-                                                  "client_order_id": client_order_id})
+        try:
+            return self._req("POST", "/orders", json={"symbol": symbol, "qty": q, "side": side,
+                                                      "type": "market", "time_in_force": "day",
+                                                      "client_order_id": client_order_id})
+        except BrokerError as e:
+            # A retry after a lost response: Alpaca already has this order and rejects the ID as a duplicate.
+            # Return the accepted order if it is the same order; anything else is a real rejection.
+            if e.status != 422 or "client_order_id" not in e.message:
+                raise
+            o = self._req("GET", "/orders:by_client_order_id", params={"client_order_id": client_order_id})
+            if (o or {}).get("symbol") == symbol and o.get("side") == side and float(o.get("qty") or 0) == float(q):
+                return o
+            raise
+
+    def open_orders(self) -> list[dict]:
+        return self.orders(status="open")
+
+    def cancel_open_orders(self) -> list:
+        """Cancel every open order of the account (Alpaca DELETE /orders)."""
+        return self._req("DELETE", "/orders") or []
 
     def close_all(self) -> list:
         """Cancel open orders and close every position at market (Alpaca DELETE /positions)."""

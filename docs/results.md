@@ -35,6 +35,9 @@ IC by year: 2016 +0.038, 2017 +0.029, 2018 +0.018, 2019 -0.008, 2020 -0.012, 202
   the 95% interval is about 0.5% per month after costs.
 - The pooled information coefficient is positive (0.014, t 2.17), but small, and it is not a pre-registered test.
 - About half of the 2016-2019 effect was an industry effect, and control regressions found no effect in any period.
+- Weighted by dollar volume instead of equally (a size check, not pre-registered), the test-period long-short was
+  -1.22% per month gross (t -1.82, 95% CI [-2.54%, +0.10%]): with more weight on the largest stocks, the estimate
+  is negative.
 - Single measures (cosine, Jaccard, edit; risk factors; MD&A) show the same picture; none is significant in the
   test period after a correction for nine tests.
 
@@ -132,7 +135,7 @@ momentum alpha after 5 bps -0.19%/month (t -1.07); GBM IC by year 2022 -0.009, 2
 ## What this means
 - The minimum detectable effect was about 1.3% per month (pre-registration, section 7), so the test can exclude only
   large effects. The CI excludes a GBM edge above about 0.5% per month after costs.
-- In 2016-2021 (about 30,000 training rows) the model learned patterns that did not hold after 2021. A tree model
+- In 2016-2021 (about 35,000 training rows) the model learned patterns that did not hold after 2021. A tree model
   can mix many weak signals, but it cannot make a signal that is not in the data.
 - The model trades its whole book about once a month (turnover 2.05 of 2 legs), so even a small edge must pay
   about 10 bps a month in costs.
@@ -161,14 +164,14 @@ the panel rows had an image. Run once on 2026-11-18.
 
 Not confirmatory: gross long-short -0.14%/month (t -0.58); turnover 3.21 per month (of a maximum of 4), so the
 cost is about 16 bps a month; FF5 + momentum alpha after 5 bps -0.30%/month (t -1.36); IC by year 2022 +0.019,
-2023 -0.004, 2024 -0.027, 2025 -0.022. Validation losses 0.671-0.676 against 0.679 for always predicting the base
-rate.
+2023 -0.004, 2024 -0.027, 2025 -0.022. Validation losses 0.671-0.676 against 0.677 for always predicting the base
+rate (58.8% "up" in the training images).
 
 ## What the network learned
 The CNN's prediction has a mean monthly rank correlation of **-0.25 with the last month's return** (`rev_1`),
--0.15 with the distance from the 52-week high, -0.03 with 12-1 momentum and +0.08 with 21-day volatility. So it
-mostly learned short-term reversal: stocks that fell in the picture are predicted to rise. In 2022-2025 that
-pattern did not pay in large stocks, and the monthly turnover made it costly.
+-0.15 with the price as a share of its 52-week high (`high_52w`), -0.03 with 12-1 momentum and +0.08 with 21-day
+volatility. So it mostly learned short-term reversal: stocks that fell in the picture are predicted to rise. In
+2022-2025 that pattern did not pay in large stocks, and the monthly turnover made it costly.
 
 ## Limits
 - A small version of the paper's design (a quarter of the channels, about 1/10 of the training images, at most 5

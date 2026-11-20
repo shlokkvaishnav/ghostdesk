@@ -38,6 +38,7 @@ why: [decisions](dev/decisions.md).
 | A crash is recovered | A run that dies half way leaves no "done" mark; the next run in the window finishes the trades | `test_rebalance.py::test_a_run_that_dies_half_way_is_finished_by_the_next_run` |
 | A missed day is seen and caught up | A due rebalance outside the window is an error; the next session catches up | `test_rebalance.py::test_missed_window_is_an_error_and_the_next_session_catches_up` |
 | Orders never cross zero | A flip closes the old side first; shorts are whole shares | `test_live.py::test_child_orders_reach_target_and_never_cross_zero` (11 cases x 4 schedules) |
+| A bad stock does not stop the book | A hard-to-borrow stock is left out of the short leg; a rejected stock gets no more orders and makes the run an error; a rate-limited child order is skipped and the stock keeps trading | `test_rebalance.py::test_a_hard_to_borrow_stock_is_left_out_of_the_short_leg`, `::test_a_rejected_stock_stops_but_the_others_reach_target`, `::test_a_rate_limited_child_is_skipped_and_the_stock_keeps_trading` |
 | Rate limits respected | At most 170 requests a minute (limit 200); 429 retried; only a real rejection stops a stock | `test_live.py::test_broker_paces_requests_and_keeps_retrying_rate_limits` |
 | The book's risk is known | Each day: expected volatility (Ledoit-Wolf covariance), beta to SPY, sector net weights | `test_book_risk.py` |
 | The book matches the plan | After each run: stocks within 20% of target, value off target, gross per side | `test_live.py::test_reconcile_target_against_positions` |

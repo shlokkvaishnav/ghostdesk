@@ -1,5 +1,6 @@
 """End-to-end trade runs with a fake broker and a fake clock: a month-start day, a rerun the same day, a missed
-window and its catch-up, a run that dies half way and its completion, and the gate for other days."""
+window and its catch-up, a run that dies half way and its completion, the gate for other days, and the order guards
+(a hard-to-borrow short, a rejected stock, a rate-limited child order)."""
 import json
 
 import numpy as np
@@ -180,3 +181,83 @@ def test_decide_gate(t, empty, done, trade, ok, word):
     is_open = bool(len(row)) and row["open_utc"].iloc[0] <= ts < row["close_utc"].iloc[0]
     d = decide(cal, ts, is_open, empty, done, Config())
     assert (d.trade, d.ok) == (trade, ok) and word in d.reason
+
+
+class PickyBroker(FakeBroker):
+    """A fake broker with one hard-to-borrow stock and stocks whose orders fail (permanently or for a while)."""
+
+    def __init__(self, clock, hard_to_borrow=(), reject=(), busy_once=()):
+        super().__init__(clock)
+        self.htb, self.reject, self.busy = set(hard_to_borrow), set(reject), set(busy_once)
+
+    def asset(self, s):
+        return {"shortable": True, "easy_to_borrow": s not in self.htb, "fractionable": True}
+
+    def submit(self, s, qty, side, cid):
+        if s in self.reject:
+            raise BrokerError(403, "insufficient buying power")
+        if s in self.busy:
+            self.busy.discard(s)
+            raise BrokerError(429, "rate limit")
+        return super().submit(s, qty, side, cid)
+
+
+def _plan(store) -> dict:
+    """The month-start plan of the standard store (a dry run sends no order): symbol -> (current, target)."""
+    clock = Clock("2026-12-01 14:40")
+    probe = FakeBroker(clock)
+    probe.pos = {"S0": 5.0}
+    d = deps(probe, clock, store)
+    run_trade(d, sessions(), dry_run=True)
+    return d.notes["plan"]
+
+
+def test_a_hard_to_borrow_stock_is_left_out_of_the_short_leg(store):
+    shorts = sorted(s for s, (_, q) in _plan(store).items() if q < 0)
+    assert shorts  # the plan has a short leg to remove a stock from
+    clock = Clock("2026-12-01 14:40")
+    b = PickyBroker(clock, hard_to_borrow={shorts[0]})
+    b.pos = {"S0": 5.0}
+    ok, _, _ = run_trade(deps(b, clock, store), sessions())
+    log = json.loads((store / "rebalance_20261201.json").read_text())
+    assert ok and log["not_shortable"] == [shorts[0]] and shorts[0] not in log["target"]
+    assert b.positions().get(shorts[0], 0) >= 0  # never sold short
+
+
+def test_a_rejected_stock_stops_but_the_others_reach_target(store):
+    bad = min(s for s, (_, q) in _plan(store).items() if q > 0)
+    clock = Clock("2026-12-01 14:40")
+    b = PickyBroker(clock, reject={bad})
+    b.pos = {"S0": 5.0}
+    ok, _, extra = run_trade(deps(b, clock, store), sessions())
+    log = json.loads((store / "rebalance_20261201.json").read_text())
+    tries = [o for o in log["orders"] if o["symbol"] == bad]
+    assert len(tries) == 1 and tries[0]["status_code"] == 403  # no further children after a rejection
+    assert not ok and extra["rejected"] == 1  # the page shows the run as a problem
+    others = {s: q for s, q in log["target"].items() if s != bad}
+    assert all(abs(b.positions().get(s, 0) - q) < 1e-6 for s, q in others.items())
+
+
+def test_a_rate_limited_child_is_skipped_and_the_stock_keeps_trading(store):
+    busy = min(s for s, (_, q) in _plan(store).items() if q > 0)
+    clock = Clock("2026-12-01 14:40")
+    b = PickyBroker(clock, busy_once={busy})
+    b.pos = {"S0": 5.0}
+    run_trade(deps(b, clock, store), sessions())
+    log = json.loads((store / "rebalance_20261201.json").read_text())
+    tries = [o for o in log["orders"] if o["symbol"] == busy]
+    assert tries[0]["status_code"] == 429 and len(tries) > 1 and all("id" in o for o in tries[1:])
+
+
+def test_a_closed_market_inside_the_window_is_a_missed_rebalance():
+    cal = sessions()
+    d = decide(cal, pd.Timestamp("2026-12-01 14:40", tz="UTC"), False, False, False, Config())  # e.g. a closure
+    assert not d.trade and not d.ok and "missed" in d.reason
+
+
+def test_broker_refuses_an_order_without_a_size_or_side():
+    from ghostdesk.live.alpaca_broker import Broker
+    b = Broker(headers={}, session=object())
+    for qty, side in ((0, "buy"), (-1, "sell"), (1, "short")):
+        with pytest.raises(ValueError):
+            b.submit("A", qty, side, "x")

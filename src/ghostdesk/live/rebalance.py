@@ -32,6 +32,8 @@ from ghostdesk.live.order_planning import (
     unit_of,
 )
 
+ON_TARGET_SHARE = 0.9  # a rebalance counts as done when at least this share of its stocks is on target
+
 
 @dataclass(frozen=True)
 class Config:
@@ -114,13 +116,15 @@ class Deps:
 
 def month_done(store: Path, today: pd.Timestamp) -> bool:
     """A rebalance of this month ran to its end (its record has the final reconciliation). A run that died
-    half way leaves a record without one, so the next run in the window finishes the trades."""
+    half way leaves a record without one, and a run that ended with fewer than ON_TARGET_SHARE of the stocks on
+    target is not done either, so the next run in the window finishes the trades."""
     for p in store.glob(f"rebalance_{today:%Y%m}*.json"):
         try:
-            if "recon" in json.loads(p.read_text()):
-                return True
+            r = json.loads(p.read_text()).get("recon")
         except ValueError:
             continue
+        if r and r.get("on_target", 0) >= ON_TARGET_SHARE * r.get("stocks_target", 0):
+            return True  # a run that ended far off target is not done: the next run in the window trades the rest
     return False
 
 
@@ -143,6 +147,7 @@ def run_trade(d: Deps, sessions: pd.DataFrame, cfg: Config = Config(), dry_run: 
                                        pd.read_parquet(d.store / "index.parquet"),
                                        pd.read_parquet(d.store / "scores.parquet"))
     one, sides = select(f, d.dollar_volume(f["symbol"].tolist()))
+    canceled = 0 if dry_run else _cancel_open(d)  # orders of an earlier run that are still working
     current = b.positions()
     assets = {s: _asset(b, s) for s in sorted(set(sides[sides != 0].index) | set(current))}
     shortable = {s: bool(assets[s].get("shortable") and assets[s].get("easy_to_borrow"))
@@ -169,7 +174,8 @@ def run_trade(d: Deps, sessions: pd.DataFrame, cfg: Config = Config(), dry_run: 
            "target": {s: float(q) for s, q in target.items()}, "leg": cfg.leg,
            "target_gross": {k: round(v, 4) for k, v in gross.items()},
            "too_expensive": too_expensive(sides, target, prices),
-           "signal": one[["symbol", "form", "composite", "q"]].to_dict("records"), "orders": []}
+           "signal": one[["symbol", "form", "composite", "q"]].to_dict("records"), "orders": [],
+           "canceled_open_orders": canceled}
     d.log(f"rebalance {today:%Y-%m-%d}: {len(plan)} stocks to trade, {len(weights)} buckets from minute "
           f"{weights[0][0]}; long {log['long']}, short {log['short']}, equity {equity:,.0f}; target gross long "
           f"{gross['long']:.3f}, short {gross['short']:.3f}; too expensive {log['too_expensive']}")
@@ -215,7 +221,7 @@ def run_trade(d: Deps, sessions: pd.DataFrame, cfg: Config = Config(), dry_run: 
     path.write_text(json.dumps(log, indent=1, default=str))
     errs = sum(1 for o in log["orders"] if "error" in o)
     r = log["recon"]
-    ok = errs == 0 and r["on_target"] >= 0.9 * r["stocks_target"]
+    ok = errs == 0 and r["on_target"] >= ON_TARGET_SHARE * r["stocks_target"]
     return ok, (f"rebalance {today:%Y-%m-%d}: {len(log['orders'])} orders, {errs} rejected; on target "
                 f"{r['on_target']}/{r['stocks_target']}, off {r['off_pct']}%"), {
         "orders": len(log["orders"]), "rejected": errs, "on_target": r["on_target"], "off_pct": r["off_pct"]}
@@ -232,6 +238,21 @@ def _profile(d: Deps, symbols: list[str], sessions: pd.DataFrame, today: pd.Time
         d.log(f"profile: minute bars failed ({type(e).__name__}); fixed profile")
         return learned_profile(pd.DataFrame())
     return learned_profile(bars)
+
+
+def _cancel_open(d: Deps, timeout_s: float = 60) -> int:
+    """Cancel orders still open from an earlier run, and wait until none is open, so that the plan starts from
+    positions that no working order will change. Returns how many were open."""
+    n = len(d.broker.open_orders())
+    if n:
+        d.broker.cancel_open_orders()
+        t0 = d.now()
+        while d.broker.open_orders():
+            if (d.now() - t0).total_seconds() > timeout_s:
+                raise RuntimeError(f"{n} open orders not canceled after {timeout_s:.0f} s")
+            d.sleep(2)
+        d.log(f"canceled {n} open orders of an earlier run")
+    return n
 
 
 def _asset(b, symbol: str) -> dict:

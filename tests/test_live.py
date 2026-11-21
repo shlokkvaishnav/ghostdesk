@@ -143,7 +143,10 @@ class FakeSession:
 
     def request(self, method, url, **kw):
         self.calls.append((method, url, kw))
-        return self.answers.pop(0)
+        a = self.answers.pop(0)
+        if isinstance(a, Exception):
+            raise a
+        return a
 
 
 def test_broker_refuses_a_live_endpoint():
@@ -258,3 +261,32 @@ def test_reconcile_target_against_positions():
     assert r["off_pct"] == pytest.approx((200 + 20) / 1000 * 100)  # C has no price: not counted in value
     assert r["gross"]["long"] == {"target": 50.0, "actual": 52.0} and r["gross"]["short"] == {"target": 50.0, "actual": 30.0}
     assert r["worst"][0]["symbol"] == "B"
+
+
+def test_broker_retries_a_network_error():
+    import requests
+    s = FakeSession([requests.ConnectionError("reset"), requests.Timeout("slow"),
+                     FakeResponse(200, [{"symbol": "A", "qty": "2"}])])
+    assert Broker(headers={}, session=s, sleep=lambda _: None).positions() == {"A": 2}
+
+
+def test_broker_network_error_that_persists_is_not_permanent():
+    import requests
+    s = FakeSession([requests.ConnectionError("down")] * 8)
+    with pytest.raises(BrokerError) as e:
+        Broker(headers={}, session=s, sleep=lambda _: None).positions()
+    assert not e.value.permanent  # the rebalance skips the child and the next bucket tries again
+
+
+def test_a_retried_order_that_alpaca_already_took_is_returned():
+    taken = {"id": "o1", "symbol": "A", "side": "buy", "qty": "3", "status": "new"}
+    s = FakeSession([FakeResponse(422, {"message": "client_order_id must be unique"}), FakeResponse(200, taken)])
+    assert Broker(headers={}, session=s, sleep=lambda _: None).submit("A", 3, "buy", "gd-x") == taken
+    assert s.calls[1][1].endswith("/orders:by_client_order_id")
+
+
+def test_a_reused_order_id_for_a_different_order_is_still_an_error():
+    other = {"id": "o1", "symbol": "B", "side": "sell", "qty": "1", "status": "filled"}
+    s = FakeSession([FakeResponse(422, {"message": "client_order_id must be unique"}), FakeResponse(200, other)])
+    with pytest.raises(BrokerError, match="unique"):
+        Broker(headers={}, session=s, sleep=lambda _: None).submit("A", 3, "buy", "gd-x")

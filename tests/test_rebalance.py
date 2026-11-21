@@ -55,6 +55,12 @@ class FakeBroker:
     def asset(self, s):
         return {"shortable": True, "easy_to_borrow": True, "fractionable": True}
 
+    def open_orders(self):
+        return []  # the fake fills every order at once
+
+    def cancel_open_orders(self):
+        return []
+
     def latest_prices(self, syms):
         return {s: PRICES[s] for s in syms}
 
@@ -261,3 +267,42 @@ def test_broker_refuses_an_order_without_a_size_or_side():
     for qty, side in ((0, "buy"), (-1, "sell"), (1, "short")):
         with pytest.raises(ValueError):
             b.submit("A", qty, side, "x")
+
+
+class OpenOrdersBroker(FakeBroker):
+    """Orders of an earlier run are still open until they are canceled."""
+
+    def __init__(self, clock, n_open=2):
+        super().__init__(clock)
+        self.open, self.canceled = [{"id": f"old{i}"} for i in range(n_open)], 0
+
+    def open_orders(self):
+        return list(self.open)
+
+    def cancel_open_orders(self):
+        self.canceled += len(self.open)
+        self.open = []
+        return []
+
+
+def test_a_rerun_cancels_open_orders_before_it_plans(store):
+    clock = Clock("2026-12-01 14:40")
+    b = OpenOrdersBroker(clock)
+    b.pos = {"S0": 5.0}
+    ok, _, _ = run_trade(deps(b, clock, store), sessions())
+    assert ok and b.canceled == 2 and not b.open
+    assert json.loads((store / "rebalance_20261201.json").read_text())["canceled_open_orders"] == 2
+
+
+def test_a_dry_run_cancels_nothing(store):
+    clock = Clock("2026-12-01 14:40")
+    b = OpenOrdersBroker(clock)
+    b.pos = {"S0": 5.0}
+    run_trade(deps(b, clock, store), sessions(), dry_run=True)
+    assert b.canceled == 0 and len(b.open) == 2
+
+
+@pytest.mark.parametrize("on, total, done", [(2, 10, False), (8, 10, False), (9, 10, True), (10, 10, True)])
+def test_a_month_far_off_target_is_not_done(store, on, total, done):
+    (store / "rebalance_20261201.json").write_text(json.dumps({"recon": {"on_target": on, "stocks_target": total}}))
+    assert month_done(store, pd.Timestamp("2026-12-01")) is done

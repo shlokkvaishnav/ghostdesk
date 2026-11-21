@@ -114,7 +114,8 @@ PYTHONPATH=src .venv/bin/python -u scripts/live_desk.py trade --dry-run    # the
 PYTHONPATH=src .venv/bin/python -u scripts/live_desk.py site               # site-data/live.json
 gh workflow run live.yml -f mode=score                                # full score on Actions (about 12 min cold)
 gh workflow run live.yml -f mode=trade                                # trade now (only acts on a rebalance day)
-# timed runs start 4-6 h late (D23): on a rebalance day, dispatch mode=trade by hand 14:35-17:00 UTC
+# timed runs start 4-6 h late (D23): on a rebalance day, dispatch mode=trade by hand 14:35-17:00 UTC,
+# or install the Mac trigger once: scripts/ops/install_trade_dispatch.sh (14:45 and 15:45 UTC, weekdays)
 gh variable set TRADING --body off                                    # stop: no new orders from the next run
 gh workflow run live.yml -f mode=flatten                              # close every position (during market hours)
 gh variable set TRADING --body on                                     # start again

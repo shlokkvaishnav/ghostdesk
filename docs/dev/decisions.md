@@ -304,3 +304,16 @@ the decision of an old entry — add a new entry that replaces it.
   open would only be a guess about the delay; waiting inside a job for the open was rejected in D15.
 - **Until then:** on 2026-12-01 (or the next two sessions) run `gh workflow run live.yml -f mode=trade` between
   14:35 and 17:00 UTC; a rerun trades nothing.
+
+### D24 — A research explorer page from one committed statistics file (2026-11-24)
+- **Need:** the results were only tables in `docs/results.md`; the owner wants the project public with something a
+  reader can try.
+- **Choice:** a second static page, `web/explore.html`, with three tools: switch off one backtest guard (the pitfall
+  table), the signal by period and measure (quintiles, long-short after costs, interval, power), and execution cost
+  by strategy plus capacity by fund size. Vanilla JS and inline SVG, like the live page; no library.
+- **Data:** `data/` stays out of git (rule 5). One small file of statistics, `web/data/research.json`, is written by
+  `scripts/explorer/export_research.py` and committed, so CI and the page need no study data. A test keeps it equal
+  to `docs/results.md`.
+- **Not done:** combining several mistakes at once (each pitfall run switches off one guard only, so a combination
+  would be a number that was never computed); a backtest equity curve (no monthly return series is stored).
+

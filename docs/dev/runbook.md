@@ -120,11 +120,19 @@ gh variable set TRADING --body off                                    # stop: no
 gh workflow run live.yml -f mode=flatten                              # close every position (during market hours)
 gh variable set TRADING --body on                                     # start again
 ```
-The page source is `web/` (product page; `web/data/live.json` comes from the job). The whole site (page at the root,
+The page source is `web/` (product page; `live.json` comes from the job and is copied to `_site/data/live.json`; the research explorer `web/explore.html` reads the committed `web/data/research.json`). The whole site (page at the root,
 mkdocs under `/docs/`) is built and deployed only by `live.yml`. The live job installs exact versions from
 `requirements-live.txt`. GitHub disables a scheduled workflow after 60 days without activity only in a public
 repository; if the repository becomes public, a commit every two months keeps it on. The page badge turns red
 when the data is over 30 hours old.
+
+### Research explorer data — `scripts/explorer/export_research.py` (decision D24)
+```bash
+PYTHONPATH=src .venv/bin/python -u scripts/explorer/export_research.py   # web/data/research.json, about 1 s
+```
+Needs the study results in `data/` (`results_<period>.json`, `pitfalls.json`, `execution_results_test_seed<n>.json`,
+`capacity.json`). Run it again after a study changes, then commit the file. The test in
+`tests/test_research_export.py` fails if the file and `docs/results.md` disagree.
 
 ## 8. Checks before a commit
 ```bash

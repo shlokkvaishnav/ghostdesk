@@ -167,6 +167,12 @@ Producer: `scripts/studies/summarize_execution_study.py` (from the three `execut
 entry per group, size and agent with `best_fixed`, `diff_bps_per_seed`, `diff_bps_mean`, `ci95_per_seed`,
 `seeds_worse`, `seeds_better`. Invariant: the best fixed schedule is the same in all seeds.
 
+### web/data/research.json (committed)
+Producer: `scripts/explorer/export_research.py` (module `explorer/research_export.py`). The only study output that is
+committed: statistics only, about 22 KB. Keys: `signal`, `pitfalls`, `execution`, `capacity`. Read by
+`web/explore.html`. Invariant (`tests/test_research_export.py`): no ticker, price, position or order key; under
+100 KB; the H1 row, the pitfall rows and the VWAP cost equal the numbers in `docs/results.md`.
+
 ### Summary files
 `universe_coverage.json`, `filings_index_summary.json`, `features_summary.json`, `prices_coverage.json`: counts
 written by the producers; [docs/data.md](../data.md) quotes them.

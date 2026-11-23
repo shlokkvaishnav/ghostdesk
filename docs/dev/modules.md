@@ -203,6 +203,19 @@ Alpaca's message. `SNAPSHOTS` is the market-data snapshot URL.
 | `child_orders(current, target, weights, unit=1.0)` | Signed orders per bucket; no order crosses zero (a flip closes in bucket 0; a new short side is whole shares). |
 | `side_of(qty)` | `buy` or `sell`. |
 
+## ghostdesk/explorer/research_export.py — data of the research explorer page (ready)
+Pure functions. They keep only statistics (means, t values, 95% intervals, costs), never a ticker, price or row.
+Decision D24.
+
+| Name | Contract |
+|---|---|
+| `measure_label(key) -> str` | A plain name for a signal measure key, e.g. `sim_mdna_edit_r` → "Management discussion, edit distance". |
+| `signal(results) -> dict` | From the four `results_<period>.json`: per period (build, check, test, pooled) and measure, the quintile returns, long-short gross and after 5 bps (mean, t, ci95), IC, Sharpe and MDE. The test period also has its pre-registration and code commits. |
+| `pitfalls(table) -> dict` | From `pitfalls.json`: the baseline and each mistake (one guard off) with a plain label and explanation. |
+| `execution(seed_runs) -> dict` | From the `execution_results_test_seed<n>.json` runs: cost in bps per group, order size and strategy, the mean over the seeds. |
+| `capacity(cap) -> dict` | From `capacity.json`: the monthly cost curve by fund size, the gross edge levels and the break-even fund sizes. |
+| `build(results, pitfall_table, seed_runs, cap) -> dict` | The whole `web/data/research.json`, rounded to 6 significant digits. |
+
 ## ghostdesk/live/dashboard_data.py — data of the web page (core)
 | Name | Contract |
 |---|---|

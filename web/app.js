@@ -1,4 +1,4 @@
-// ghostdesk live page. Reads data/live.json (written by scripts/live.py site) and draws inline SVG at the real width.
+// ghostdesk live page. Reads data/live.json (written by scripts/live_desk.py site) and draws inline SVG at the real width.
 "use strict";
 const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";

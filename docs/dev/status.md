@@ -1,6 +1,6 @@
 # Status and next work
 
-Updated 2026-11-20.
+Updated 2026-11-24.
 
 ## Done
 | Step | Result | Evidence |
@@ -76,6 +76,7 @@ list (survivorship) and mixing 10-K with 10-Q ranks change the most.
 
 
 - Filing-diff visual on the page; pitfall table with a CI per change; actionlint in CI.
+- Research explorer page `web/explore.html` (D24): done 2026-11-24; data `web/data/research.json`.
 
 ## Known open items
 - data-quality F7 (MD&A in Exhibit 13), F8 (revenue concept names): not blocking.

@@ -107,7 +107,12 @@ PYTHONPATH=src .venv/bin/python -u scripts/studies/summarize_execution_study.py 
 Design changes use `--eval val` only (train 2023-01..09, evaluate 2023-10..12). `--eval test` (2024) is the final run.
 
 ## 7. Live job (Step 5, decision D15)
-Runs on GitHub Actions (`.github/workflows/live.yml`); state in the Actions cache `live-state-*` (`data/live/`).
+Runs on GitHub Actions (`.github/workflows/live.yml`); state in the Actions cache `live-state-*` (`data/live/`), and an
+encrypted copy (`*.enc`, decision D25) in the release `live-state`. To read the copy on the Mac (`STATE_KEY` is in `.env`):
+```bash
+set -a; . ./.env; set +a; mkdir -p data/live && gh release download live-state --dir /tmp/state --pattern '*.enc'
+for f in /tmp/state/*.enc; do openssl enc -d -aes-256-cbc -pbkdf2 -md sha256 -iter 100000 -pass env:STATE_KEY -in "$f" -out "data/live/$(basename "${f%.enc}")"; done
+```
 ```bash
 PYTHONPATH=src .venv/bin/python -u scripts/live_desk.py score --limit 12   # local test: 12 companies, about 30 s
 PYTHONPATH=src .venv/bin/python -u scripts/live_desk.py trade --dry-run    # the plan; never sends an order

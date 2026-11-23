@@ -22,7 +22,7 @@ on:
         description: "score, trade, flatten or site"
         default: site
 permissions:
-  contents: write  # upload the trade record to the private release `live-state` (no commit)
+  contents: write  # upload the encrypted trade record to the release `live-state` (no commit; D25)
   pages: write
   id-token: write
 concurrency:
@@ -68,9 +68,17 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          STATE_KEY: ${{ secrets.STATE_KEY }}
         run: |
-          if [ ! -f data/live/scores.parquet ]; then
-            mkdir -p data/live && gh release download live-state --dir data/live --clobber && echo "restored from release"
+          # The release holds only encrypted files (*.enc, D25); they are decrypted with the STATE_KEY secret.
+          if [ ! -f data/live/scores.parquet ] && [ -n "$STATE_KEY" ]; then
+            mkdir -p data/live "$RUNNER_TEMP/state"
+            gh release download live-state --dir "$RUNNER_TEMP/state" --pattern '*.enc' --clobber
+            for f in "$RUNNER_TEMP"/state/*.enc; do
+              openssl enc -d -aes-256-cbc -pbkdf2 -md sha256 -iter 100000 -pass env:STATE_KEY \
+                -in "$f" -out "data/live/$(basename "${f%.enc}")"
+            done
+            echo "restored from release"
           fi
       - name: score
         if: steps.mode.outputs.mode == 'score'
@@ -106,7 +114,16 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload live-state data/live/*.json data/live/*.parquet --clobber
+          STATE_KEY: ${{ secrets.STATE_KEY }}
+        run: |
+          # The repository is public, so only encrypted copies go to the release (D25). No key: no upload.
+          if [ -z "$STATE_KEY" ]; then echo "::warning::STATE_KEY is not set; the trade record was not uploaded"; exit 0; fi
+          mkdir -p "$RUNNER_TEMP/enc"
+          for f in data/live/*.json data/live/*.parquet; do
+            openssl enc -aes-256-cbc -salt -pbkdf2 -md sha256 -iter 100000 -pass env:STATE_KEY \
+              -in "$f" -out "$RUNNER_TEMP/enc/$(basename "$f").enc"
+          done
+          gh release upload live-state "$RUNNER_TEMP"/enc/*.enc --clobber
       - uses: actions/cache/save@v4
         if: always() && steps.mode.outputs.mode != 'site'
         continue-on-error: true

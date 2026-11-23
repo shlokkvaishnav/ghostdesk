@@ -35,7 +35,8 @@ Ghostdesk is a research and paper-trading system for US stocks, with four parts:
 3. **The test period 2022-2025 is used once**, after the pre-registration is committed. Build 2016-2019, check
    2020-2021. Do not tune anything on 2022-2025 data.
 4. **Secrets.** Never print, log, commit or echo `.env` values. Check a key only by name:
-   `grep -c "^NAME=" .env`. GitHub secrets: `SEC_USER_AGENT`, `ALPACA_API_KEY`, `ALPACA_SECRET_KEY`.
+   `grep -c "^NAME=" .env`. GitHub secrets: `SEC_USER_AGENT`, `ALPACA_API_KEY`, `ALPACA_SECRET_KEY`, `STATE_KEY` (encrypts release files,
+   D25; a copy is in `.env`).
 5. **No raw data in git.** `data/` is gitignored. Publish only statistics and charts.
 6. **SEC fair access.** At most 8 requests per second in total (all parallel jobs together), with the declared
    User-Agent. Use `EdgarClient`; never call SEC URLs with plain `requests`.

@@ -317,3 +317,15 @@ the decision of an old entry — add a new entry that replaces it.
 - **Not done:** combining several mistakes at once (each pitfall run switches off one guard only, so a combination
   would be a number that was never computed); a backtest equity curve (no monthly return series is stored).
 
+### D25 — The repository is public; release files are encrypted (2026-11-24)
+- **Need:** the owner made the repository public. A public repository makes its releases public, and the releases
+  `live-state` (trade record with arrival prices, scores, the stock list) and `inputs-<date>` (universe and report
+  index) are data, not statistics (rule 5).
+- **Choice:** keep the same releases and workflows, but only encrypted files (`*.enc`, AES-256-CBC, PBKDF2-SHA256,
+  100,000 rounds, `openssl enc`). The key is the secret `STATE_KEY` (a copy in `.env`). The live job encrypts before
+  upload and decrypts on restore; with no key it uploads nothing. `tests/test_workflows.py` checks this.
+- **Alternatives not taken:** a second private repository for the state (one more token for the owner to manage);
+  the Actions cache only (no durable trade record).
+- **Also:** old Actions artifacts with row-level text features were deleted before the switch; the history was
+  scanned with gitleaks.
+

@@ -1,6 +1,6 @@
 # Text-change features and own-period XBRL values for all paired reports (Step 2). Started by hand only.
 # 6 shards run at the same time, each at 1.3 SEC requests per second: 7.8 per second in total (SEC limit: 10).
-# The inputs (universe and report index; public SEC metadata, no prices) come from a private release. The outputs are
+# The inputs (universe and report index; public SEC metadata, no prices) come from a release, encrypted (D25). The outputs are
 # private workflow artifacts. Every step continues on error, so a failed run sends no email; the shard summary tells.
 name: features
 on:
@@ -31,7 +31,16 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download "${{ inputs.release }}" --dir data --pattern "*.parquet"
+          STATE_KEY: ${{ secrets.STATE_KEY }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          # The release holds only encrypted files (*.enc, D25).
+          mkdir -p data "$RUNNER_TEMP/in"
+          gh release download "$RELEASE" --dir "$RUNNER_TEMP/in" --pattern "*.parquet.enc"
+          for f in "$RUNNER_TEMP"/in/*.enc; do
+            openssl enc -d -aes-256-cbc -pbkdf2 -md sha256 -iter 100000 -pass env:STATE_KEY \
+              -in "$f" -out "data/$(basename "${f%.enc}")"
+          done
       - name: extract
         continue-on-error: true
         timeout-minutes: 335

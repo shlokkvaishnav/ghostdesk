@@ -41,3 +41,17 @@ def test_only_listed_score_schedules_start_a_score():
     assert score and all(c in crons for c in score)  # a renamed score cron must not turn into a trade run
     assert "schedule:*) m=trade" in script
     assert 'case "$m" in score|trade|flatten|site) ;; *) m=site ;; esac' in script
+
+
+def test_releases_get_only_encrypted_files():
+    """The repository is public (D25): the trade record and the inputs are uploaded and read only as *.enc files,
+    encrypted with the STATE_KEY secret, and nothing is uploaded when the key is missing."""
+    live = _steps("live.yml")
+    up = live["keep the trade record in the release"]["run"]
+    assert 'if [ -z "$STATE_KEY" ]' in up and "openssl enc -aes-256-cbc" in up
+    assert re.search(r"gh release upload live-state \S*\.enc", up)
+    assert "data/live/*.json data/live/*.parquet --clobber" not in up  # never the plain files
+    assert "openssl enc -d" in live["restore from the release if the cache is lost"]["run"]
+    text = (WF / "features.yml").read_text()
+    assert '--pattern "*.parquet.enc"' in text and "openssl enc -d" in text
+

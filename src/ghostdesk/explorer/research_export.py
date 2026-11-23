@@ -1,4 +1,4 @@
-"""Statistics for the research explorer page (web/explore.html).
+"""Statistics for the research explorer page (web/explore/index.html, address /ghostdesk/explore/).
 
 The function `build` takes the result files of the studies and keeps only statistics: means, t values, confidence
 intervals and costs. It keeps no ticker, price, date of a trade or row of data. The output is small, so it is

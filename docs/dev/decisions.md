@@ -308,7 +308,7 @@ the decision of an old entry — add a new entry that replaces it.
 ### D24 — A research explorer page from one committed statistics file (2026-11-24)
 - **Need:** the results were only tables in `docs/results.md`; the owner wants the project public with something a
   reader can try.
-- **Choice:** a second static page, `web/explore.html`, with three tools: switch off one backtest guard (the pitfall
+- **Choice:** a second static page, `web/explore/index.html` (address `/ghostdesk/explore/`; `web/explore.html` only forwards there), with three tools: switch off one backtest guard (the pitfall
   table), the signal by period and measure (quintiles, long-short after costs, interval, power), and execution cost
   by strategy plus capacity by fund size. Vanilla JS and inline SVG, like the live page; no library.
 - **Data:** `data/` stays out of git (rule 5). One small file of statistics, `web/data/research.json`, is written by

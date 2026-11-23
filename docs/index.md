@@ -34,7 +34,7 @@ the page; none sends an email. Details: [engineering](engineering.md).
 
 ## Results and documents
 - [Results](results.md): every test, with its confidence interval and power.
-- [Research explorer](https://shlokkvaishnav.github.io/ghostdesk/explore.html): try the studies yourself (switch off one backtest guard, compare periods and measures, see trading costs).
+- [Research explorer](https://shlokkvaishnav.github.io/ghostdesk/explore/): try the studies yourself (switch off one backtest guard, compare periods and measures, see trading costs).
 - [Research note](note.md): the short write-up.
 - Pre-registrations: [signal](preregistration.md), [ML](preregistration-ml.md), [chart CNN](preregistration-cnn.md).
 - [Data method](data.md). Raw market data is not published; only statistics are.

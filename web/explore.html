@@ -2,100 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ghostdesk — can a backtest be trusted?</title>
-<meta name="description" content="Try the ghostdesk studies yourself: switch off one guard of a backtest, compare signal measures and periods, and see what trading costs at each order and fund size.">
-<meta name="theme-color" content="#fbfbfc" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#14151a" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238c2346'/%3E%3Cpath d='M9 21V12a7 7 0 0 1 14 0v9l-2.3-1.6L18.4 21 16 19.4 13.6 21l-2.3-1.6z' fill='white'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="assets/style.css">
-<style>
-  .seg { flex-wrap: wrap; }
-  .seg button, .pick { min-height: 44px; }
-  .controls { display: flex; flex-wrap: wrap; gap: .8rem 1.2rem; align-items: center; margin-bottom: 1.1rem; }
-  .controls label { font-size: .9rem; color: var(--muted); }
-  .pick { font: 500 .9rem/1 var(--sans); padding: .55rem .9rem; border-radius: 12px; border: 1px solid var(--rule); background: var(--card); color: var(--ink); max-width: 100%; }
-  .kv { display: grid; grid-template-columns: 1fr auto; gap: .45rem 1rem; font-size: .92rem; margin-top: 1rem; }
-  .kv span:nth-child(even) { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
-  .kv .head { color: var(--muted); font-weight: 600; font-size: .8rem; }
-  .say { margin: 1rem 0 0; font-size: .95rem; text-wrap: pretty; }
-  .explain { margin: 0 0 .6rem; color: var(--muted); font-size: .95rem; text-wrap: pretty; }
-  .badge { font: 600 .78rem/1 var(--sans); padding: .38rem .7rem; border-radius: 99px; background: var(--accent-soft); color: var(--accent); display: inline-flex; align-items: center; gap: .4rem; }
-  .bar-honest { fill: var(--cool); } .bar-mistake { fill: var(--accent); }
-  .q1 { fill: var(--cool); } .q5 { fill: var(--accent); } .qm { fill: var(--muted); opacity: .45; }
-  .best { fill: var(--ok); } .other { fill: var(--muted); opacity: .55; } .agent { fill: var(--accent); opacity: .8; }
-  .val { fill: var(--ink); font-size: 12px; font-weight: 600; }
-  .zero { stroke: var(--muted); stroke-width: 1; }
-  .curve { fill: none; stroke: var(--ink); stroke-width: 2; }
-  .level { stroke-width: 1.5; stroke-dasharray: 5 4; }
-  .lv0 { stroke: var(--accent); } .lv1 { stroke: var(--cool); } .lv2 { stroke: var(--muted); }
-  .marker { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
-  .note { font-size: .85rem; color: var(--muted); margin: .8rem 0 0; }
-  .empty { color: var(--muted); padding: 2rem 0; text-align: center; }
-</style>
+<title>ghostdesk — research explorer (moved)</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://shlokkvaishnav.github.io/ghostdesk/explore/">
+<meta http-equiv="refresh" content="0; url=explore/">
 </head>
 <body>
-<div class="wrap">
-  <nav class="top" aria-label="Pages">
-    <a class="brand" href="./" style="opacity:1">ghostdesk</a>
-    <span style="display:flex;gap:1.2rem;align-items:center"><a href="./">Live desk</a><a href="docs/">Method &amp; results</a></span>
-  </nav>
-
-  <header class="hero">
-    <div class="kicker">Research explorer</div>
-    <h1>Can a backtest be trusted?</h1>
-    <p class="sub">Every number on this page comes from the ghostdesk studies: about 47,700 company reports and ten years of S&amp;P 500 prices. Change the settings and see how the answer moves. The page shows only statistics, never prices or trades.</p>
-  </header>
-
-  <section id="mistakes" aria-labelledby="h-mistakes">
-    <h2 id="h-mistakes">Switch off one guard</h2>
-    <p class="cap">The study has guards against common backtest mistakes. Each button runs the same study (2016–2021, before the test years) with one guard switched off. The blue bar is the honest result; the red bar is the result with the mistake.</p>
-    <div class="controls"><div class="seg" id="mistake-pick" role="group" aria-label="Backtest mistake"></div></div>
-    <div class="grid g2">
-      <div class="panel"><p class="explain" id="mistake-explain"></p><div class="kv" id="mistake-kv"></div></div>
-      <div class="panel"><div id="mistake-chart"></div><p class="say" id="mistake-say" aria-live="polite"></p></div>
-    </div>
-  </section>
-
-  <section id="signal" aria-labelledby="h-signal">
-    <h2 id="h-signal">The signal, period by period</h2>
-    <p class="cap">Stocks are split into five groups by how much their newest report changed. The desk buys group 5 (changed least) and sells group 1 (changed most). A rising chart means the signal worked in that period.</p>
-    <div class="controls">
-      <div class="seg" id="period-pick" role="group" aria-label="Period"></div>
-      <label>Measure <select class="pick" id="measure-pick"></select></label>
-    </div>
-    <div class="grid g2">
-      <div class="panel"><div id="signal-chart"></div><p class="say" id="signal-say" aria-live="polite"></p></div>
-      <div class="panel"><div id="signal-badge"></div><div class="kv" id="signal-kv"></div></div>
-    </div>
-  </section>
-
-  <section id="costs" aria-labelledby="h-costs">
-    <h2 id="h-costs">What trading costs</h2>
-    <p class="cap">Left: the cost of buying one order over the first trading hour, on replayed 2024 minute bars, for each schedule and for the learned agent (PPO), mean of three training runs. Right: the monthly trading cost of the whole strategy as the fund grows, against the size of its edge.</p>
-    <div class="grid g2">
-      <div class="panel">
-        <div class="controls">
-          <div class="seg" id="group-pick" role="group" aria-label="Stocks"></div>
-          <div class="seg" id="size-pick" role="group" aria-label="Order size, share of daily volume"></div>
-        </div>
-        <div id="exec-chart"></div><p class="say" id="exec-say" aria-live="polite"></p>
-      </div>
-      <div class="panel">
-        <div class="ctl">
-          <div class="ctl-head"><label for="aum">Fund size</label><output id="aum-out" for="aum"></output></div>
-          <input type="range" id="aum" min="0" max="20" step="1" value="8">
-        </div>
-        <div id="cap-chart"></div><p class="say" id="cap-say" aria-live="polite"></p>
-      </div>
-    </div>
-  </section>
-
-  <footer>
-    <p>Statistics only: no prices, positions or trades are on this page. Data file: <code>data/research.json</code>, written by <code>scripts/explorer/export_research.py</code> from the study results.</p>
-    <p><a href="./">Live desk</a> · <a href="docs/results/">All results</a></p>
-  </footer>
-</div>
-<script src="explore.js"></script>
+<p>The research explorer moved to <a href="explore/">ghostdesk/explore/</a>.</p>
 </body>
 </html>

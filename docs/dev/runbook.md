@@ -125,7 +125,7 @@ gh variable set TRADING --body off                                    # stop: no
 gh workflow run live.yml -f mode=flatten                              # close every position (during market hours)
 gh variable set TRADING --body on                                     # start again
 ```
-The page source is `web/` (product page; `live.json` comes from the job and is copied to `_site/data/live.json`; the research explorer `web/explore.html` reads the committed `web/data/research.json`). The whole site (page at the root,
+The page source is `web/` (product page; `live.json` comes from the job and is copied to `_site/data/live.json`; the research explorer `web/explore/index.html` (address `/ghostdesk/explore/`) reads the committed `web/data/research.json`). The whole site (page at the root,
 mkdocs under `/docs/`) is built and deployed only by `live.yml`. The live job installs exact versions from
 `requirements-live.txt`. GitHub disables a scheduled workflow after 60 days without activity only in a public
 repository; if the repository becomes public, a commit every two months keeps it on. The page badge turns red

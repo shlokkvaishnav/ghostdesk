@@ -1,4 +1,4 @@
-// ghostdesk research explorer. Reads data/research.json (written by scripts/explorer/export_research.py; statistics
+// ghostdesk research explorer (page: explore/). Reads ../data/research.json (written by scripts/explorer/export_research.py; statistics
 // only) and draws inline SVG at the real width. Every control is a button, a select or a range input, and each chart
 // has a sentence next to it (aria-live) that says what it shows.
 "use strict";
@@ -99,7 +99,7 @@ function drawSignal() {
     value: v, cls: i === 0 ? "q1" : i === 4 ? "q5" : "qm",
   })), 240, `Mean return per month of the five groups, ${p.label}`, (v) => pct(v));
   $("signal-badge").innerHTML = p.confirmatory
-    ? `<span class="badge">Pre-registered · run once</span><p class="note">The rules were committed (<code>${p.prereg_commit}</code>) and timestamped before this period was used; the test ran once with code <code>${p.code_commit}</code>. <a href="docs/preregistration/">Read the pre-registration</a>.</p>`
+    ? `<span class="badge">Pre-registered · run once</span><p class="note">The rules were committed (<code>${p.prereg_commit}</code>) and timestamped before this period was used; the test ran once with code <code>${p.code_commit}</code>. <a href="../docs/preregistration/">Read the pre-registration</a>.</p>`
     : `<p class="note">${p.label} is not the confirmatory test. Only the test period was fixed in advance and run once.</p>`;
   const net = m.ls_net_5bps, ci = net.ci95;
   $("signal-kv").innerHTML = kv([
@@ -178,7 +178,7 @@ $("aum").addEventListener("input", (e) => { state.aum = +e.target.value; drawCap
 let resizeTimer;
 addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => R && drawAll(), 150); });
 
-fetch("data/research.json")
+fetch("../data/research.json")
   .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
   .then((data) => { R = data; drawAll(); })
   .catch(() => {

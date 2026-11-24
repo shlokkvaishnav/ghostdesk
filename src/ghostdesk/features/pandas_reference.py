@@ -45,6 +45,12 @@ def alpha158_pandas(df: pd.DataFrame) -> pd.DataFrame:
     def less(a, b):
         return np.minimum(a, b).where(a.notna() & b.notna())
 
+    def flat_zero(std, s, d):
+        """pandas' rolling std keeps a residue (about 1e-8) from its running update in a constant window; the exact
+        value is 0 (the same rule as in `_corr`)."""
+        r = roll(s, d)
+        return std.where(back(r.max()) != back(r.min()), 0.0)
+
     def slope_fit(s, d):
         t = np.arange(1, d + 1, dtype=float)
 
@@ -88,7 +94,7 @@ def alpha158_pandas(df: pd.DataFrame) -> pd.DataFrame:
             mx_h, mn_l = back(roll(h, d).max()), back(roll(lo, d).min())
             out[f"ROC{d}"] = ref(c, d) / c
             out[f"MA{d}"] = back(roll(c, d).mean()) / c
-            out[f"STD{d}"] = back(roll(c, d).std()) / c
+            out[f"STD{d}"] = flat_zero(back(roll(c, d).std()), c, d) / c
             out[f"BETA{d}"] = back(roll(c, d).apply(f_slope, raw=True)) / c
             out[f"RSQR{d}"] = back(roll(c, d).apply(f_r2, raw=True))
             out[f"RESI{d}"] = (c - back(roll(c, d).apply(f_fit, raw=True))) / c
@@ -109,7 +115,7 @@ def alpha158_pandas(df: pd.DataFrame) -> pd.DataFrame:
             out[f"SUMP{d}"], out[f"SUMN{d}"], out[f"SUMD{d}"] = su / (sa + E), sd / (sa + E), (su - sd) / (sa + E)
             out[f"VMA{d}"] = back(roll(v, d).mean()) / (v + E)
             out[f"VSTD{d}"] = back(roll(v, d).std()) / (v + E)
-            out[f"WVMA{d}"] = back(roll(wv, d).std()) / (back(roll(wv, d).mean()) + E)
+            out[f"WVMA{d}"] = flat_zero(back(roll(wv, d).std()), wv, d) / (back(roll(wv, d).mean()) + E)
             su, sd, sa = back(roll(vup, d).sum()), back(roll(vdn, d).sum()), back(roll(vab, d).sum())
             out[f"VSUMP{d}"], out[f"VSUMN{d}"], out[f"VSUMD{d}"] = su / (sa + E), sd / (sa + E), (su - sd) / (sa + E)
     res = pd.DataFrame(out, index=df.index)

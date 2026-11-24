@@ -156,3 +156,25 @@ def test_compare_uses_both_labels_and_sample_sizes(tmp_path, scored):
     assert c["headline"] == f"{N_DAYS - 2} days of forward data"
     only_val = compare(val, {"forward_days": 0, "models": {}})
     assert all(r["forward"] is None for r in only_val["rows"])
+
+
+def test_build_report_end_to_end_with_night_books(tmp_path):
+    from ghostdesk.live.forward import build_report, read_books
+
+    days, syms, r, opens = world()
+    led = fill(tmp_path / "ledger", days, syms, r)
+    raw = (opens.stack().rename("o").reset_index().rename(columns={"level_0": "day", "level_1": "symbol"})
+           .assign(h=lambda d: d["o"] * 1.01, l=lambda d: d["o"] * 0.99, c=lambda d: d["o"]))
+    live = tmp_path / "live"
+    live.mkdir()
+    (live / f"night_{days[0]:%Y%m%d}.json").write_text(json.dumps({"target": {syms[0]: 10.0}, "equity": 100000.0}))
+    (live / f"night_{days[1]:%Y%m%d}.json").write_text("{not json")
+    (live / f"night_{days[2]:%Y%m%d}.json").write_text(json.dumps({"complete": False}))  # no plan
+    books = read_books(live)
+    assert list(books) == [days[0]]
+    rep = build_report(led.read(), books, raw, None, {"models": {}})
+    assert rep["forward"]["forward_days"] == N_DAYS - 2 and rep["book"]["days"] == 1
+    assert rep["compare"]["headline"] == f"{N_DAYS - 2} days of forward data"
+    json.dumps(rep, allow_nan=False)  # strict JSON: the page parses it
+    empty = build_report(Ledger(tmp_path / "e").read(), {}, pd.DataFrame(), None, {})
+    assert empty["compare"]["headline"] == "0 days of forward data" and empty["daily"] == []

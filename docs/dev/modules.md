@@ -270,6 +270,12 @@ A constant window has variance exactly 0.
 | `load_validation(path)` | `validation.json` as a dict, `{}` if missing. |
 | `compare(validation, forward, book)` | Rows per model and metric with validation value and sessions next to forward value and days; headline "N days of forward data". Forward is None until data exists. |
 
+## ghostdesk/live/forward.py — the forward evaluation as one function (core, D37)
+| Name | Contract |
+|---|---|
+| `read_books(live_dir)` | `night_*.json` → session → `{"target": shares, "equity"}`; unreadable files and nights without a plan are left out. |
+| `build_report(ledger_rows, books, raw, sectors, validation)` | JSON-ready dict: `forward` (summary), `daily`, `book` (metrics and curve), `compare`. Pure; with no ledger it reports 0 days. |
+
 ## ghostdesk/live/nightly.py — the nightly run (core, D30)
 | Name | Contract |
 |---|---|

@@ -87,6 +87,14 @@ Before the first night (owner):
 3. Merge the branch, set up the Worker ([trigger-setup.md](trigger-setup.md)), watch one night with
    `TRADING=off` (ledger only), then `gh variable set TRADING --body on`.
 
+## 8a. Forward evaluation — `scripts/live_eval.py` (D37)
+- `PYTHONPATH=src .venv/bin/python scripts/live_eval.py [--live data/live] [--validation docs/results/validation.json]`
+  reads the ledger, `night_*.json` and the live store, writes `data/live/forward_eval.json` and prints
+  "N days of forward data". Read-only: no broker, no order, no network. Works on an empty ledger (0 days). The nightly
+  job writes the same file after scoring (`score_ledger` in `live_desk.py`) and the page reads it from `live.json`.
+- Type check of these modules only: `make typecheck` (mypy, scoped in `pyproject.toml`; the rest of the code is not
+  type-checked).
+
 ## 8b. Fault injection — `scripts/ops/run_fault_injection.py`
 - 500 random scenarios of 10 nights (about 2.5 min) and two deliberate bugs; output
   `data/results/fault_injection.json`.

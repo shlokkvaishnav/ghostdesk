@@ -25,6 +25,8 @@ import requests
 from ghostdesk.data.alpaca_client import AlpacaClient
 from ghostdesk.data.store import PriceStore, add_symbols, ingest_daily
 from ghostdesk.live.alpaca_broker import Broker
+from ghostdesk.live.compare import load_validation
+from ghostdesk.live.forward import build_report, read_books
 from ghostdesk.live.ledger import Ledger, model_summary, score
 from ghostdesk.live.members import WIKI_CURRENT, current_members, one_class_per_company
 from ghostdesk.live.nightly import Deps, last_closed, run_night
@@ -40,6 +42,7 @@ from ghostdesk.research.backtest import half_spread
 
 LIVE = DATA_DIR / "live"
 SITE_DATA = REPO_ROOT / "site-data"
+VALIDATION = REPO_ROOT / "docs" / "results" / "validation.json"
 FIRST_DAY_BACK = 600  # the live store keeps about 600 calendar days
 
 ap = argparse.ArgumentParser()
@@ -149,6 +152,8 @@ def score_ledger(store: PriceStore, sectors: dict) -> None:
     led = Ledger(LIVE / "ledger")
     rows = led.read()
     if rows.empty:
+        report = build_report(rows, {}, pd.DataFrame(), None, load_validation(VALIDATION))
+        (LIVE / "forward_eval.json").write_text(json.dumps(report, separators=(",", ":"), allow_nan=False))
         return
     raw = store.read("raw", start=rows["session"].min() - pd.Timedelta(days=40))
     opens = raw.pivot(index="day", columns="symbol", values="o").sort_index()
@@ -163,6 +168,12 @@ def score_ledger(store: PriceStore, sectors: dict) -> None:
     (LIVE / "ledger_summary.json").write_text(summ.to_json(orient="records"))
     ok, why = led.verify()
     health("score", ok, f"{sc['session'].nunique() if len(sc) else 0} sessions scored; ledger {why}")
+    try:  # the forward evaluation (D37) must never stop the night
+        report = build_report(rows, read_books(LIVE), raw, sectors, load_validation(VALIDATION))
+        (LIVE / "forward_eval.json").write_text(json.dumps(report, separators=(",", ":"), allow_nan=False))
+        health("forward", True, report["compare"]["headline"])
+    except Exception as e:  # noqa: BLE001
+        health("forward", False, f"{type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------------------------------------------- flatten
@@ -190,6 +201,7 @@ def site() -> None:
     ens = ensemble_score(latest, weights).sort_values() if len(latest) and weights else pd.Series(dtype=float)
     summ_p = LIVE / "ledger_summary.json"
     board = json.loads(summ_p.read_text()) if summ_p.exists() else []
+    fe = LIVE / "forward_eval.json"
     nights = sorted(LIVE.glob("night_*.json"))
     last_night = json.loads(nights[-1].read_text()) if nights else {}
     positions = broker.position_rows()
@@ -205,6 +217,7 @@ def site() -> None:
                         "top": [{"symbol": s, "score": round(float(v), 4)} for s, v in ens.tail(10)[::-1].items()],
                         "bottom": [{"symbol": s, "score": round(float(v), 4)} for s, v in ens.head(10).items()]},
         "leaderboard": board,
+        "forward_eval": json.loads(fe.read_text()) if fe.exists() else None,
         "ledger": {"sessions": int(rows["session"].nunique()) if len(rows) else 0, "rows": len(rows),
                    "verified": led.verify()[0]},
         "positions": [{"symbol": p["symbol"], "qty": float(p["qty"]), "value": float(p["market_value"]),

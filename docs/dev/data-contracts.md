@@ -97,6 +97,9 @@ Producer: `scripts/live_desk.py`. `store/` (a `data.store` of about 600 days for
 (`<YYYYMMDD>.parquet` with `live.ledger.COLUMNS`, `chain.jsonl`), `night_<YYYYMMDD>.json` (runs, ledger hash, target,
 plan, orders, rejected, unreached, complete), `ledger_scores.parquet` and `ledger_summary.json` (derived),
 `members.parquet` (`symbol, cik, name, sector`), `models/` (frozen models, ensemble weights, sectors),
+`forward_eval.json` (derived, strict JSON: `forward` = per-model summary with `forward_days`, `daily` = per
+session and model IC, hit rate, P&L, `book` = days, cumulative net return, Sharpe, max drawdown, mean turnover,
+total cost, curve; `compare` = labelled validation-versus-forward rows with sample sizes; D37),
 `health.json`. Output for the page: `site-data/live.json` (gitignored).
 
 ### Caches and inputs

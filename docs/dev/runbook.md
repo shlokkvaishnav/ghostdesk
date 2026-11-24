@@ -51,7 +51,7 @@ PYTHONPATH=src .venv/bin/python -u scripts/data/update_prices.py            # up
 
 ## 5. Feature benchmark — `scripts/research/bench_features.py`
 - The 158 factors on 2016 to the validation end (1,762 sessions x 635 symbols): engine cold, engine warm (cache), and
-  engine against `features.pandas_reference` on 50 symbols. Output `data/results/bench_features.json`. About 30 s.
+  engine against `features.pandas_reference` on 50 symbols. Output `data/results/bench_features.json` (a copy is committed in `docs/results/`). About 30 s.
 
 ## 6. Kaggle — `scripts/research/export_kaggle_panel.py`, `kaggle/transformer`, `kaggle/foundation`
 ```bash

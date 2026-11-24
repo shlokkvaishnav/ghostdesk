@@ -4,7 +4,8 @@ Times, for the 158 Alpha158 factors: the engine on all symbols (cold, no cache),
 the engine and the pandas reference on the same `--pandas-symbols` symbols (pandas on all ~650 symbols takes too long
 for a laptop: its regression factors call numpy.polyfit once per window). Checks that both have the same missing
 cells, and records the factors whose values differ (by |a - b| / (|b| + 1e-6) > 1e-6) with the share of cells: these
-are near-constant windows where pandas' running rolling variance leaves a residue (about 1e-9) instead of 0.
+are 5-20 day regression factors (BETA, RSQR, RESI) where the engine's running sums lose about 1e-12 (see D28).
+Constant windows are exact 0 in both the engine and the baseline.
 Writes data/results/bench_features.json.
 Usage: python -u scripts/research/bench_features.py [--pandas-symbols 50]
 """

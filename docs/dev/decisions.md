@@ -444,3 +444,15 @@ the decision of an old entry — add a new entry that replaces it.
   fine-grained token that can only start this repository's workflows; the GitHub schedule stays as a backup. A
   duplicate start is harmless (a done session does nothing). The Mac launchd trigger of D23 was removed.
 - **Owner's steps:** create the Cloudflare account and the token ([trigger-setup.md](trigger-setup.md)).
+
+### D37 — Forward evaluation: matured sessions only, two baselines, validation never mixed with forward (2026-11-24)
+- **Decision:** the ledger is scored only after open(t+1) and open(t+2) exist. Per model: rank IC (at least 30
+  stocks), directional hit rate of the picks before costs (the backtest's definition), profitable share after costs
+  (D30), mean absolute error where a return forecast exists. Baselines: a zero-signal model (IC 0, no trades,
+  P&L 0) and the two reversal models, as differences. The target book is read from `night_*.json` (`target` is signed
+  whole shares, not weights), priced at open(t+1) and open(t+2); cost is the Corwin-Schultz half spread plus 2 bps
+  each way, as in the backtest. The page and `compare.py` label 2021-2022 numbers "historical validation" and ledger
+  numbers "independent forward test" and always show the number of days; forward cells are empty until data exists.
+- **Why:** the validation window was used to choose models, so only the forward ledger is independent evidence; a
+  short forward sample must be shown as short.
+- **Type check:** mypy runs on the three evaluation modules only (`make typecheck`); the rest is not type-checked.

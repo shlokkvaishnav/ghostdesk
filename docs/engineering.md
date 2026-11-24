@@ -30,4 +30,5 @@ Details of every module: [modules](dev/modules.md). Every design choice and why:
 | Predictions before orders | No order for a session without its ledger file; the ledger is never rewritten | `test_nightly.py`, invariant I5 |
 | Orders only in Alpaca's OPG window | 19:00-09:28 New York time, both seasons | `test_nightly.py::test_window_follows_new_york_time_in_winter_and_summer` |
 | Crashes, storms, partial fills, missed nights | 500 random scenarios (10,152 runs, 1,545 crashes, 1,039 runs stopped by 429 storms): 0 violations of six invariants; two deliberate bugs are caught | `test_nightly.py::test_fault_injection_*`, `data/results/fault_injection.json` |
+| Forward results are scored only when matured | A prediction counts after its open(t+1) and open(t+2) exist; an empty ledger reports 0 days; a changed ledger file breaks the chain | `test_evaluate.py` |
 | Docs match the code | Every module, public name and script is documented | `test_docs.py` |

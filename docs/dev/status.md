@@ -25,6 +25,8 @@ Updated 2026-11-24. The project is being turned into a quant research platform (
 | 6b. Site | new page: account vs SPY, tonight's calls, model leaderboard from the ledger, health; rebuilt by each live run, no commit | `web/` |
 | 6a. Trigger | Cloudflare Worker code and setup guide (owner deploys) | `worker/`, [trigger-setup.md](trigger-setup.md) |
 
+| 7. Forward evaluation | scoring of the ledger (rank IC, hit rate, error, zero-signal and reversal baselines), book tracking (return, Sharpe, drawdown, turnover, Corwin-Schultz cost), validation-versus-forward table and page section; runs on an empty ledger ("0 days of forward data"); no forward result exists yet | `scripts/live_eval.py`, `tests/test_evaluate.py`, D37 |
+
 ## Next
 3. Kaggle: Transformer and foundation-model kernels pushed 2026-11-24, still queued; GPU on hold for another
    project (owner's decision). Their scores enter `run_validation.py` from `data/kaggle/out/`.

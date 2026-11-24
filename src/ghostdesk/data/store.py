@@ -137,14 +137,15 @@ def membership(intervals: pd.DataFrame, days: pd.DatetimeIndex, symbols: list[st
 
 
 def ingest_daily(store: PriceStore, fetch, symbols: list[str], today: pd.Timestamp, now: pd.Timestamp,
-                 overlap_days: int = 10, tol: float = 1e-6) -> dict:
+                 overlap_days: int = 10, tol: float = 1e-6, first_day: str = "2016-01-01") -> dict:
     """Append the sessions after the stored last day up to `today` (both kinds), as batch `<YYYYMMDDHHMM>`.
     `fetch(symbols, start, end, adjustment)` returns Alpaca bars. The adjusted fetch starts `overlap_days` before the
     last stored day; a symbol whose overlap closes changed (a new dividend or split) is fetched again from the start
-    of its history. Returns counts for the health record."""
+    of its history (`first_day`; the live store starts about 600 days back). Returns counts for the health record.
+A symbol new to the store (an index addition) gets its history from `add_symbols`."""
     name = f"{pd.Timestamp(now).tz_convert('UTC'):%Y%m%d%H%M}"
     last = store.last_day("raw")
-    start = (last + pd.Timedelta(days=1)) if last is not None else pd.Timestamp("2016-01-01")
+    start = (last + pd.Timedelta(days=1)) if last is not None else pd.Timestamp(first_day)
     if start > today:
         return {"new_rows": 0, "refetched": 0, "batch": None}
     # A bare end date is refused by the free plan as "recent SIP data"; an explicit time at least 16 minutes old is not.
@@ -161,7 +162,7 @@ def ingest_daily(store: PriceStore, fetch, symbols: list[str], today: pd.Timesta
         changed = m[(m["c"] / m["c_old"] - 1).abs() > tol]
         refetch = sorted(set(changed["symbol"]))
     if refetch:
-        full = fetch(refetch, "2016-01-01", end, "all")
+        full = fetch(refetch, first_day, end, "all")
         new_adj = pd.concat([new_adj[~new_adj["symbol"].isin(refetch)], bars_to_rows(full, now)], ignore_index=True)
     if last is not None:  # unchanged overlap rows add nothing; keep only new sessions and refetched symbols
         new_adj = new_adj[(new_adj["day"] > last) | new_adj["symbol"].isin(refetch)]
@@ -170,3 +171,18 @@ def ingest_daily(store: PriceStore, fetch, symbols: list[str], today: pd.Timesta
     if len(new_adj):
         store.write_batch("adj", new_adj.reset_index(drop=True), name)
     return {"new_rows": len(raw), "refetched": len(refetch), "batch": name}
+
+
+def add_symbols(store: PriceStore, fetch, symbols: list[str], first_day: str, end: str, now: pd.Timestamp) -> int:
+    """Fetch the whole history (raw and adjusted) of symbols that the store does not have yet, as one batch."""
+    have = set(store.read("raw", start=pd.Timestamp(end) - pd.Timedelta(days=10), end=end)["symbol"]) \
+        if store.batches("raw") else set()
+    new = sorted(set(symbols) - have)
+    if not new or not store.batches("raw"):
+        return 0
+    name = f"add-{pd.Timestamp(now).tz_convert('UTC'):%Y%m%d%H%M}"
+    for kind, adj in (("raw", "raw"), ("adj", "all")):
+        b = fetch(new, first_day, end, adj)
+        if len(b):
+            store.write_batch(kind, bars_to_rows(b, now), name)
+    return len(new)

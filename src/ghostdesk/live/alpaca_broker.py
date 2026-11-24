@@ -100,14 +100,17 @@ class Broker:
                 return out
             until = page[-1]["submitted_at"]
 
-    def submit(self, symbol: str, qty: float, side: str, client_order_id: str) -> dict:
-        """A day market order; `qty` in whole shares or with up to 4 decimals (fractional, long side only)."""
-        if qty <= 0 or side not in ("buy", "sell"):
-            raise ValueError(f"bad order {symbol} {side} {qty}")
+    def submit(self, symbol: str, qty: float, side: str, client_order_id: str, time_in_force: str = "day") -> dict:
+        """A market order. `time_in_force` "day", or "opg" (market on open: whole shares only; Alpaca queues it
+        when sent from 19:00 to 09:28 New York time and rejects it otherwise)."""
+        if qty <= 0 or side not in ("buy", "sell") or time_in_force not in ("day", "opg"):
+            raise ValueError(f"bad order {symbol} {side} {qty} {time_in_force}")
+        if time_in_force == "opg" and qty != round(qty):
+            raise ValueError(f"OPG orders are whole shares: {symbol} {qty}")
         q = f"{qty:.4f}".rstrip("0").rstrip(".")
         try:
             return self._req("POST", "/orders", json={"symbol": symbol, "qty": q, "side": side,
-                                                      "type": "market", "time_in_force": "day",
+                                                      "type": "market", "time_in_force": time_in_force,
                                                       "client_order_id": client_order_id})
         except BrokerError as e:
             # A retry after a lost response: Alpaca already has this order and rejects the ID as a duplicate.

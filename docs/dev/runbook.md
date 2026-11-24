@@ -64,10 +64,32 @@ PYTHONPATH=src .venv/bin/python -u scripts/research/export_kaggle_panel.py --upl
 - The panel ends at the validation end; `--include-test` needs the test lock open.
 - Local check of a kernel: `SMOKE=1 PANEL=data/kaggle/panel/panel.npz OUT=/tmp/x python kaggle/transformer/kernel.py`.
 
+## 6b. Frozen live models — `scripts/research/fit_live_models.py`
+- Ridge and LightGBM on 2016-2022; writes `data/live/models/` (about 2 min).
+
 ## 7. Validation study — `scripts/research/run_validation.py`
 - Walk-forward 2018-2022 of every local model, plus Kaggle scores in `data/kaggle/out/`; registry rows; optimizer
   against the decile book on 2021-2022; `--verify` reruns LightGBM for the bit-identical check. Needs a clean
   commit (the registry refuses a dirty tree). Output `data/results/validation.json`.
+
+## 8. Live job — `scripts/live_desk.py` (GitHub Actions `live`, D30)
+| Mode | What it does |
+|---|---|
+| `night` | members, new bars into `data/live/store`, predictions into the ledger, OPG orders inside the window (unless `TRADING=off`), ledger scoring |
+| `flatten` | close every position and cancel open orders |
+| `site` | `site-data/live.json` for the page |
+
+Before the first night (owner):
+1. `gh variable set TRADING --body off`, then `gh workflow run live.yml -f mode=flatten` (closes the monthly book).
+2. Fit and publish the frozen models: `PYTHONPATH=src .venv/bin/python -u scripts/research/fit_live_models.py`,
+   then upload `data/live/models/` inside the encrypted state archive:
+   `tar -C data/live -c models | openssl enc -aes-256-cbc -salt -pbkdf2 -md sha256 -iter 100000 -pass env:STATE_KEY -out live-state.tar.enc && gh release upload live-state live-state.tar.enc --clobber`.
+3. Merge the branch, set up the Worker ([trigger-setup.md](trigger-setup.md)), watch one night with
+   `TRADING=off` (ledger only), then `gh variable set TRADING --body on`.
+
+## 8b. Fault injection — `scripts/ops/run_fault_injection.py`
+- 500 random scenarios of 10 nights (about 2.5 min) and two deliberate bugs; output
+  `data/results/fault_injection.json`.
 
 ## 9. Checks before a commit
 ```bash
@@ -84,4 +106,5 @@ make check     # ruff + pytest + mkdocs build --strict
 ## Workflows
 | Workflow | Trigger | Purpose |
 |---|---|---|
-| `ci.yml` | push, pull request | ruff + pytest |
+| `ci.yml` | push, pull request | ruff + pytest + docs |
+| `live.yml` | Worker dispatch (main), schedule (backup), push to `docs/**` or `web/**`, manual | nightly run, flatten, the whole Pages site |

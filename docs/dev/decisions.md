@@ -401,3 +401,38 @@ the decision of an old entry — add a new entry that replaces it.
 - **Decision:** run key = SHA-256 of (data hash, code commit, config hash); scores stored as `.npy` with their
   SHA-256; a run from uncommitted code is refused. `verify` reruns and compares hashes.
 - **Rejected:** MLflow (a server or a large local store for a few dozen runs).
+
+### D30 — The nightly loop: ledger first, market-on-open orders, one order per stock and night (2026-11-24)
+- **Decision:** after each session every model predicts every member into an append-only ledger (one file per
+  session, hash chain), and only then may orders go out. The paper account trades the pre-registered ensemble
+  (rank average, weights by validation IC) through the optimizer, as OPG (market-on-open) orders in whole shares.
+- **OPG window:** Alpaca rejects OPG orders sent between 09:28 and 19:00 New York time and queues those sent after
+  19:00 for the next open (docs.alpaca.markets/docs/orders-at-alpaca, read 2026-11-24). So the run that sends
+  orders starts at 01:30 UTC (20:30 EST, 21:30 EDT), with a second chance at 11:00 UTC; a run after the close but
+  before 19:00 writes only the ledger. Whether the paper API accepts OPG was not tested (no order was sent); the
+  docs say paper and live share one API.
+- **Idempotency:** client order id `gd-<session>-<symbol>`, one order per (session, symbol); the plan starts from
+  positions plus this session's open orders; a change of side is closed tonight and opened the next night, so no
+  order crosses zero. Gate: every session that is not done yet (replaces the monthly gate of D15).
+- **Frozen models:** ridge and LightGBM are fitted once on 2016-2022 and only loaded by the live job.
+- **Owner's definition of a correct prediction:** the pick's trade made money after costs (half spread in and
+  out plus 2 bps each way); the error size |predicted - realized| is kept where a model forecasts a return.
+- **Kept from the monthly desk:** paper-only host check, retries and pacing, crash recovery, reconciliation,
+  kill switch `TRADING`, encrypted release state (D25), silent workflow.
+
+### D35 — Fault-injection harness at the HTTP level (2026-11-24)
+- **Decision:** the real broker class runs against an in-memory fake of the Alpaca API, so its retries and
+  duplicate-id handling are part of what is tested. Faults: crashes before and after Alpaca handles a request (a
+  lost answer), 429 storms longer than the retries, permanent rejections, partial fills, crashes while predicting
+  and between the ledger file and its chain line, missed and doubled triggers. Six invariants are checked after
+  every run and every open.
+- **Check of the checks:** two deliberate bugs (orders outside the window; ids that change per run with a planner
+  blind to open orders) must produce violations, and do.
+
+### D36 — An outside timer: a Cloudflare Worker cron calls workflow_dispatch (2026-11-24, owner's choice)
+- **Context:** GitHub starts scheduled runs hours late (D23); the OPG window needs the run between 19:00 and 09:28
+  New York time.
+- **Decision:** a Cloudflare Worker (free plan) with two crons calls GitHub's workflow_dispatch API with a
+  fine-grained token that can only start this repository's workflows; the GitHub schedule stays as a backup. A
+  duplicate start is harmless (a done session does nothing). The Mac launchd trigger of D23 was removed.
+- **Owner's steps:** create the Cloudflare account and the token ([trigger-setup.md](trigger-setup.md)).

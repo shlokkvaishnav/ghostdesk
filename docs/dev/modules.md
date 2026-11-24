@@ -24,7 +24,8 @@ Parquet batches under `data/store/bars/<adj|raw>/`, read with DuckDB. A read kee
 | `PriceStore(root)` | `.batches(kind)`, `.write_batch(kind, rows, name)` (refuses to overwrite), `.read(kind, start, end, asof, symbols)` (long rows, newest version known at `asof`), `.last_day(kind)`, `.content_hash(kind)` (SHA-256 of all batches). |
 | `matrices(rows, fields, days, symbols)` | Long rows → one session × symbol matrix per field (NaN where no bar). |
 | `membership(intervals, days, symbols)` | Session × symbol bool: in the S&P 500 (`start <= day < end`) by `price_symbol`. |
-| `ingest_daily(store, fetch, symbols, today, now, overlap_days=10)` | Appends new sessions (raw and adjusted) as one batch; a symbol whose overlap closes changed (new dividend or split) gets its whole adjusted history again. Returns `new_rows, refetched, batch`. |
+| `add_symbols(store, fetch, symbols, first_day, end, now)` | Whole history of symbols new to the store (an index addition), as one batch. |
+| `ingest_daily(store, fetch, symbols, today, now, overlap_days=10, first_day)` | Appends new sessions (raw and adjusted) as one batch; a symbol whose overlap closes changed (new dividend or split) gets its whole adjusted history again. Returns `new_rows, refetched, batch`. |
 
 ## ghostdesk/data/edgar_client.py — SEC access (core: stock list and sectors only)
 Fair-access client: declared User-Agent (from `SEC_USER_AGENT` or `.env`), at most `max_per_sec` requests per
@@ -87,7 +88,7 @@ Alpaca's message. `SNAPSHOTS` is the market-data snapshot URL.
 
 | Name | Contract |
 |---|---|
-| `Broker(headers, base=PAPER, session, sleep)` | `.clock()`, `.sessions(start, end)` (`date, open_utc, close_utc`), `.account()`, `.positions()` (symbol -> signed shares, float), `.position_rows()`, `.orders(after, status)` (all pages), `.submit(symbol, qty, side, client_order_id)` (day market order, whole shares), `.order(id)`, `.close_all()` (cancel orders, close all positions), `.asset(symbol)`, `.latest_prices(symbols)` (IEX last trade, for sizing only), `.history()` (`day, equity, profit_loss`, equity > 0). |
+| `Broker(headers, base=PAPER, session, sleep)` | `.clock()`, `.sessions(start, end)` (`date, open_utc, close_utc`), `.account()`, `.positions()` (symbol -> signed shares, float), `.position_rows()`, `.orders(after, status)` (all pages), `.submit(symbol, qty, side, client_order_id, time_in_force="day")` (market order; `opg` = market on open, whole shares), `.order(id)`, `.close_all()` (cancel orders, close all positions), `.asset(symbol)`, `.latest_prices(symbols)` (IEX last trade, for sizing only), `.history()` (`day, equity, profit_loss`, equity > 0). |
 | `BrokerError` | `status`, `message`. |
 
 ## ghostdesk/live/book_risk.py — risk of the live book (core)
@@ -236,4 +237,52 @@ A constant window has variance exactly 0.
 | `code_commit(root)` | `HEAD`, with `-dirty` if `src/` or `scripts/` have uncommitted changes. |
 | `run_key(data_hash, commit, cfg_hash)` | First 16 hex digits of their SHA-256. |
 | `Registry(root)` | `.record(...)` (refuses a dirty tree), `.get(key)`, `.runs()`, `.scores(key)`, `.verify(key, regenerate)` (bit-identical check). |
+
+## ghostdesk/live/ledger.py — the prediction ledger (core, D30)
+| Name | Contract |
+|---|---|
+| `COLUMNS`, `GENESIS` | Ledger columns; the first chain hash. |
+| `LedgerError` | A second write for a session. |
+| `sides(scores, q=0.1)` | +1 top decile, -1 bottom decile, 0. |
+| `Ledger(root)` | `.append(session, made_at, preds)` (once per session, atomic, plus a hash-chain line), `.has`, `.path`, `.read(session)`, `.lines()`, `.verify()` (files match the chain), `.repair()` (adds the line of a file written just before a crash). |
+| `score(rows, opens, half_spread, sectors, fixed_bps=2)` | Realized open(t+1)→open(t+2) return, residual, cost, pnl, profitable (owner's rule: the pick made money after costs), abs_error. |
+| `model_summary(scored)` | Per model: sessions, share of profitable picks, cumulative decile-book P&L, mean rank IC, mean absolute error. |
+
+## ghostdesk/live/nightly.py — the nightly run (core, D30)
+| Name | Contract |
+|---|---|
+| `NY`, `OPG_OPEN`, `OPG_CLOSE` | Alpaca's OPG window: 19:00 to 09:28 New York time. |
+| `NightConfig` | `min_frac=0.2`, `margin_min=3`. |
+| `Decision` | `session, predict, trade, ok, reason`. |
+| `Deps` | `broker, now, predict, target, ledger, store, trading, log`. |
+| `last_closed(sessions, now)`, `window(sessions, s, cfg)` | The last closed session; its OPG window in UTC. |
+| `state_path`, `read_state`, `is_done` | `night_<YYYYMMDD>.json`; done = `complete`. |
+| `decide(sessions, now, done, cfg)` | Ledger after the close; orders only inside the window; a missed window is an error. |
+| `run_night(deps, sessions, cfg)` | Ledger first, kill switch, plan from positions + this session's open orders, one OPG order per (session, symbol), flips closed tonight and opened next night, record with `complete` and `unreached`. |
+
+## ghostdesk/live/predict.py — frozen models and the ensemble (core, D30)
+| Name | Contract |
+|---|---|
+| `LIVE_MODELS` | reversal 1d and 5d, ridge, LightGBM. |
+| `ensemble_weights(validation, models)` | Pre-registered rule: max(validation IC, 0), normalized. |
+| `Night` | One night's design and the inputs of the optimizer. |
+| `save_models`, `load_models(root)` | `data/live/models/`. |
+| `night_design(store, symbols, session, sectors, asof, days_back=420)` | Features of the members on the night's session. |
+| `predict_night(night, models)` | `model, symbol, score, pred_return`. |
+| `ensemble_score(rows, weights)` | Weighted mean of the models' ranks. |
+| `optimizer_target(night, score, held, cfg)` | Target weights from the optimizer, starting from the book held now. |
+
+## ghostdesk/sim/fault_injection.py — fault-injection harness (ready, D35)
+| Name | Contract |
+|---|---|
+| `NY` | `America/New_York`. |
+| `Crash` | A process kill (BaseException). |
+| `Resp` | A fake HTTP answer. |
+| `FakeAlpaca` | In-memory Alpaca paper API at the HTTP level (duplicate ids, OPG window, no crossing zero, partial fills at the open, 429 storms, crashes before or after the request is handled). |
+| `CrashyLedger` | A ledger that may die between the file and its chain line. |
+| `SimClock` | A clock the broker's sleeps advance. |
+| `sessions_between(start, n)` | A weekday calendar in UTC. |
+| `Scenario` | Fault rates and an optional deliberate bug (`no_window`, `dup_ids`). |
+| `check(...)` | Invariants I1-I6 after a run. |
+| `run_scenario(sc)`, `run_many(n, start_seed, **kw)` | Random nights with primary and backup triggers; counts and violations. |
 

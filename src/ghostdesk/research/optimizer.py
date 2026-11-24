@@ -108,12 +108,14 @@ def grinold_alpha(score: np.ndarray, spec: np.ndarray, member: np.ndarray, ic: f
 
 
 def optimize_path(scores: np.ndarray, daily_ret: np.ndarray, beta: np.ndarray, member: np.ndarray, S: np.ndarray,
-                  hspread: np.ndarray, rows: np.ndarray, cfg: OptConfig = OptConfig(), log=None) -> tuple[np.ndarray, list]:
-    """Weights for every session in `rows`, each from the previous session's weights (turnover penalty)."""
+                  hspread: np.ndarray, rows: np.ndarray, cfg: OptConfig = OptConfig(), log=None,
+                  prev0: np.ndarray | None = None) -> tuple[np.ndarray, list]:
+    """Weights for every session in `rows`, each from the previous session's weights (turnover penalty); the
+    first from `prev0` (the book held now; zeros if None)."""
     n = scores.shape[1]
     opt = Optimizer(n, S, cfg)
     W = np.zeros(scores.shape)
-    prev = np.zeros(n)
+    prev = np.zeros(n) if prev0 is None else np.asarray(prev0, dtype=float)
     info = []
     for i, t in enumerate(rows):
         m = member[t] & np.isfinite(scores[t])

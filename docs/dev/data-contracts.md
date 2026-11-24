@@ -88,7 +88,15 @@ Producer: `scripts/data/build_sectors.py`. One row per CIK with prices or in tod
 
 ### data/results/*.json
 Measured numbers that the docs quote, one file per script (`bench_features.json`: engine and pandas times, cache
-size, reuse counts, differing factors).
+size, reuse counts, differing factors; `validation.json`: per-model validation metrics, run keys, optimizer, timing,
+bit-identical check; `fault_injection.json`: scenarios, runs, crashes, violations).
+
+### Live state: data/live/ (Actions cache `live-state-*`, encrypted copy in the release `live-state`)
+Producer: `scripts/live_desk.py`. `store/` (a `data.store` of about 600 days for today's members), `ledger/`
+(`<YYYYMMDD>.parquet` with `live.ledger.COLUMNS`, `chain.jsonl`), `night_<YYYYMMDD>.json` (runs, ledger hash, target,
+plan, orders, rejected, unreached, complete), `ledger_scores.parquet` and `ledger_summary.json` (derived),
+`members.parquet` (`symbol, cik, name, sector`), `models/` (frozen models, ensemble weights, sectors),
+`health.json`. Output for the page: `site-data/live.json` (gitignored).
 
 ### Caches and inputs
 | Path | Content |

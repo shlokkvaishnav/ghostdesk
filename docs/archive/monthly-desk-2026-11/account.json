@@ -1,0 +1,16 @@
+{
+ "at": "2026-11-24T17:04:28+00:00",
+ "paper": true,
+ "status": "ACTIVE",
+ "currency": "USD",
+ "equity": "100664.11",
+ "last_equity": "99985.834723",
+ "cash": "100716.94",
+ "long_market_value": "88041.33",
+ "short_market_value": "-88094.16",
+ "buying_power": "187907.1",
+ "initial_margin": "88067.75",
+ "maintenance_margin": "53687.34",
+ "multiplier": "4",
+ "created_at": "2026-11-16T16:11:21.103633Z"
+}

@@ -204,21 +204,12 @@ def ema(x, d: int):
 
 def cs_rank(x):
     """Cross-sectional percentile rank in (0, 1] per row (average ties), NaN kept."""
-    out = np.full_like(x, np.nan)
-    for t in range(x.shape[0]):
-        row = x[t]
-        ok = np.isfinite(row)
-        n = ok.sum()
-        if n:
-            v = row[ok]
-            order = np.argsort(v, kind="mergesort")
-            ranks = np.empty(n)
-            ranks[order] = np.arange(1, n + 1)
-            # average ranks of ties
-            _, inv, counts = np.unique(v, return_inverse=True, return_counts=True)
-            sums = np.bincount(inv, weights=ranks)
-            out[t, ok] = (sums / counts)[inv] / n
-    return out
+    from scipy.stats import rankdata
+
+    r = rankdata(x, axis=1, nan_policy="omit")
+    n = np.isfinite(x).sum(axis=1, keepdims=True)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(np.isfinite(x), r / n, np.nan)
 
 
 def cs_zscore(x):

@@ -371,3 +371,33 @@ the decision of an old entry — add a new entry that replaces it.
 - **Decision:** orders are market-on-open, so a prediction made after the close of day t is scored on the log return
   from open(t+1) to open(t+2), minus beta x SPY (beta from the 252 sessions through t) and minus the sector mean of
   those residuals on the day. Features use data through the close of t.
+
+### D31 — Model zoo: classic models here, the Transformer and foundation models on Kaggle (2026-11-24)
+- **Decision:** one interface (`fit`, `predict` on a session x symbol design) for 1-day and 5-day reversal, ridge,
+  LightGBM, a small Transformer trained from scratch, and zero-shot Kronos-small, Chronos-2 and TimesFM-2.5 (no
+  fine-tuning). Features are Alpha158 ranked across stocks each day; the training target is the ranked label.
+- **Compute:** the Transformer (three seeds, early stopping on 2020-07..2020-12, inside the train split) and the
+  foundation models need a GPU, so they run as Kaggle kernels (`kaggle/`) on a private Kaggle dataset of the panel;
+  their scores come back as files and enter the same backtest through `ExternalScores`.
+- **Foundation-model inputs:** 512 sessions of adjusted closes (Chronos-2, TimesFM-2.5) or OHLCV candles (Kronos)
+  through the close of t, 2 steps ahead. Their pretraining data may include the validation years, so their
+  validation numbers are not out of sample in the same sense; the test splits them at each model's pretraining
+  cutoff.
+- **Rejected:** fine-tuning (the owner asked for zero-shot); Moirai-2 (only if time is left).
+
+### D32 — Walk-forward with a 2-session purge; costs from the spread estimate and a fixed grid (2026-11-24)
+- **Decision:** yearly folds, each trained on all earlier sessions with the last 2 removed (the label of day t is
+  complete at the open of t+2). Costs: half the Corwin-Schultz spread per unit traded, and 0-10 bps fixed.
+- **Rejected:** a single split (less data for the later years); embargo longer than the label (no overlap remains).
+
+### D33 — Optimizer: PCA risk model and a parameterized cvxpy problem (2026-11-24)
+- **Decision:** 12 principal components of the last 252 daily returns plus specific risk; maximize Grinold alpha
+  minus risk minus turnover cost; dollar neutral, beta within ±1%, each sector within ±5%, at most 2% of the book
+  per stock, gross 2. Built once as a DPP problem (the trade is its own variable), so each session only updates
+  parameters; OSQP with warm start.
+- **Rejected:** a vendor risk model (none free); a full sample covariance (500 stocks, 252 days: singular).
+
+### D34 — Own experiment registry in DuckDB (2026-11-24)
+- **Decision:** run key = SHA-256 of (data hash, code commit, config hash); scores stored as `.npy` with their
+  SHA-256; a run from uncommitted code is refused. `verify` reruns and compares hashes.
+- **Rejected:** MLflow (a server or a large local store for a few dozen runs).

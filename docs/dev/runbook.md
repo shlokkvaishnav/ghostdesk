@@ -53,6 +53,22 @@ PYTHONPATH=src .venv/bin/python -u scripts/data/update_prices.py            # up
 - The 158 factors on 2016 to the validation end (1,762 sessions x 635 symbols): engine cold, engine warm (cache), and
   engine against `features.pandas_reference` on 50 symbols. Output `data/results/bench_features.json`. About 30 s.
 
+## 6. Kaggle — `scripts/research/export_kaggle_panel.py`, `kaggle/transformer`, `kaggle/foundation`
+```bash
+PYTHONPATH=src .venv/bin/python -u scripts/research/export_kaggle_panel.py --upload   # private dataset ghostdesk-panel
+~/.cache/kaggle-cli/bin/kaggle kernels push -p kaggle/transformer                     # GPU, about 1 h
+~/.cache/kaggle-cli/bin/kaggle kernels push -p kaggle/foundation                      # GPU + internet, a few hours
+~/.cache/kaggle-cli/bin/kaggle kernels status <owner>/ghostdesk-foundation           # check a few times, not in a loop
+~/.cache/kaggle-cli/bin/kaggle kernels output <owner>/ghostdesk-foundation -p data/kaggle/out
+```
+- The panel ends at the validation end; `--include-test` needs the test lock open.
+- Local check of a kernel: `SMOKE=1 PANEL=data/kaggle/panel/panel.npz OUT=/tmp/x python kaggle/transformer/kernel.py`.
+
+## 7. Validation study — `scripts/research/run_validation.py`
+- Walk-forward 2018-2022 of every local model, plus Kaggle scores in `data/kaggle/out/`; registry rows; optimizer
+  against the decile book on 2021-2022; `--verify` reruns LightGBM for the bit-identical check. Needs a clean
+  commit (the registry refuses a dirty tree). Output `data/results/validation.json`.
+
 ## 9. Checks before a commit
 ```bash
 make check     # ruff + pytest + mkdocs build --strict

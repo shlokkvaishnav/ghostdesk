@@ -3,7 +3,7 @@ name = "ghostdesk"
 version = "0.1.0"
 description = "A quant research platform for next-day S&P 500 prediction: point-in-time store, expression-language features, model zoo, walk-forward backtests, optimizer, and a nightly paper-trading loop"
 requires-python = ">=3.10"
-dependencies = ["numpy", "pandas", "pyarrow", "requests", "lxml", "duckdb", "cvxpy", "lightgbm"]
+dependencies = ["numpy", "pandas", "pyarrow", "requests", "lxml", "scipy", "duckdb", "cvxpy", "lightgbm"]
 
 [project.optional-dependencies]
 ml = ["torch"]

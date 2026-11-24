@@ -194,3 +194,46 @@ A constant window has variance exactly 0.
 | `rolling_beta(ret, mkt, window=252, min_obs=120)` | Beta through row t (1.0 with too little history). |
 | `residual_label(panel)` | Open-to-open return minus beta × SPY, minus the sector mean; NaN off-index, on vendor-error days and for the last two rows. |
 
+## ghostdesk/research/models.py — the model zoo (core, D31)
+| Name | Contract |
+|---|---|
+| `Design` | `X` (T, N, F ranked features), `y`, `mask`, `names`, `close`. |
+| `rank_features(feats, mask)` | Each feature → cross-sectional rank in [-0.5, 0.5] among masked cells; 0 elsewhere. |
+| `cs_rank_label(y, mask)` | The label ranked the same way (the training target). |
+| `Model` | `.fit(design, rows)`, `.predict(design, rows) -> (len(rows), N)`, `.config()`, `needs_fit`. |
+| `Reversal(days)` | Minus the past `days`-day log return (no fit). |
+| `Ridge(alpha=100)` | Closed-form ridge on ranked features. |
+| `LightGBM(rounds=300, params)` | Deterministic gradient boosting (fixed seed and threads). |
+| `ExternalScores(name, days, scores, panel_days)` | Kaggle scores in the same interface. |
+| `zoo()` | The local models: 1-day and 5-day reversal, ridge, LightGBM. |
+
+## ghostdesk/research/backtest.py — walk-forward backtests (core, D32)
+| Name | Contract |
+|---|---|
+| `FIXED_BPS`, `YEAR` | Cost grid 0, 1, 2, 5, 10 bps per unit traded; 252 sessions a year. |
+| `folds(days, years, purge=2)` | (train rows, predict rows) per year; train ends `purge` sessions before the year. |
+| `walk_forward(model, design, days, years, purge, first_train_row)` | Out-of-sample scores (NaN outside the years). |
+| `half_spread(high, low, close, window=21)` | Half the mean Corwin-Schultz spread through t. |
+| `decile_weights(scores, mask, q=0.1)` | Equal-weight long top 10%, short bottom 10% (gross 2). |
+| `rank_ic(scores, label, mask)` | Spearman IC per session (≥ 30 stocks). |
+| `evaluate(weights, scores, label, ret, hspread, mask, rows)` | `series` (gross, spread cost, turnover, IC, hit) and `summary`. |
+| `summarize(series)` | IC mean and t, hit rate, turnover, gross and net (spread and fixed bps) mean, annual return, Sharpe. |
+
+## ghostdesk/research/optimizer.py — risk model and optimizer (core, D33)
+| Name | Contract |
+|---|---|
+| `OptConfig` | 12 factors, 252-day window, risk aversion 10, 2% cap, ±5% sectors, ±1% beta, gross 2, IC 0.02, 2 bps. |
+| `pca_risk(returns, k)` | PCA factor model: loadings, factor variances, floored specific variances. |
+| `Optimizer(n, S, cfg)` | One DPP cvxpy problem (dollar, beta and sector neutral, caps, gross, turnover cost); `.solve(...) -> (weights, {status, solve_s})`. |
+| `grinold_alpha(score, spec, member, ic)` | IC × volatility × clipped z-score. |
+| `optimize_path(scores, daily_ret, beta, member, S, hspread, rows, cfg, log)` | Weights for each session from the previous ones. |
+
+## ghostdesk/research/registry.py — experiment registry (core, D34)
+| Name | Contract |
+|---|---|
+| `SCHEMA` | The DuckDB `runs` table. |
+| `sha256_bytes`, `array_sha256(a)`, `config_hash(config)` | Hashes (an array's dtype, shape and bytes). |
+| `code_commit(root)` | `HEAD`, with `-dirty` if `src/` or `scripts/` have uncommitted changes. |
+| `run_key(data_hash, commit, cfg_hash)` | First 16 hex digits of their SHA-256. |
+| `Registry(root)` | `.record(...)` (refuses a dirty tree), `.get(key)`, `.runs()`, `.scores(key)`, `.verify(key, regenerate)` (bit-identical check). |
+

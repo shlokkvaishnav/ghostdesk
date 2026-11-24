@@ -38,6 +38,5 @@
   outputs (a summary file, or the site's JSON). Always check step results after a run.
 
 ## Writing
-- README, repo description and public docs (`docs/*.md`): plain ASD-STE100 English (short sentences, active voice,
-  one meaning per word), result first.
+- README, repo description and public docs (`docs/*.md`): plain, normal English, result first.
 - Developer docs (`docs/dev/`): precise and short; tables over prose; numbers with dates.

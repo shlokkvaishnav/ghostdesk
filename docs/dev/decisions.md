@@ -329,3 +329,27 @@ the decision of an old entry — add a new entry that replaces it.
 - **Also:** old Actions artifacts with row-level text features were deleted before the switch; the history was
   scanned with gitleaks.
 
+
+### D26 — Pivot to a research platform; a point-in-time price store (2026-11-24, owner's choice)
+- **Context:** the text signal, the ML and CNN models were not detected in their tests, and the execution study found
+  no gain over VWAP. The owner chose to make Ghostdesk an engineering project: a platform for next-day
+  cross-sectional prediction on the survivorship-free S&P 500, with a nightly paper-trading loop.
+- **Decision:** delete the lazy-prices study (`filings/` except the SEC client, `text_signal/`, its scoring, results,
+  pre-registrations and the pitfall table), the execution study (replay simulator, schedules, PPO, capacity, VWAP
+  child orders) and the monthly return models. Git history keeps them. The SEC client moves to `data/` because the
+  stock list and the sectors still need it.
+- **Store:** own engine, no Qlib. Prices live in immutable Parquet batches read through DuckDB; a read keeps the
+  newest version of each (symbol, day) known at an as-of time. Adjusted prices change when a dividend or split
+  happens, so a backtest at an as-of date sees the adjusted series as it was then. Daily ingestion compares the
+  overlap sessions and refetches the whole adjusted history of a symbol that changed.
+- **Rejected:** one Parquet file rewritten each night (loses old versions; a crash mid-write corrupts it);
+  SQLite (row store, slow for session x symbol scans); Qlib (its binary store has no as-of reads and the owner
+  wants the engine to be the project).
+- **Sectors:** the SIC major group of each CIK (today's code), the same for removed companies; GICS exists only
+  for today's members.
+
+### D27 — Splits and the test lock (2026-11-24, owner's choice)
+- **Decision:** train 2016-2020, validation 2021-2022, test 2023-01 to 2026-10. The test is run once, after the
+  pre-registration `docs/preregistration-platform.md` is committed, says `Status: final`, and its OpenTimestamps
+  proof is committed. `research.holdout_lock.guard` refuses later sessions until then; a draft never opens it.
+- **Consequence:** sessions after 2026-10 are the forward window (live predictions in the ledger).

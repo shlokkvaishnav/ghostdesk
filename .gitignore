@@ -19,3 +19,5 @@ site/
 *.log
 nohup.out
 /site-data/
+/data
+/.venv

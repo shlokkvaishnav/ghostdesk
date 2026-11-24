@@ -11,6 +11,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from ghostdesk.data.edgar_client import DATA_DIR, SUBMISSIONS, EdgarClient, list_filings, tickers_to_ciks
 from ghostdesk.data.sp500_universe import (
     add_predecessors,
     add_valid_from,
@@ -22,7 +23,6 @@ from ghostdesk.data.sp500_universe import (
     parse_cik_lookup,
     resolve,
 )
-from ghostdesk.filings.edgar_client import DATA_DIR, SUBMISSIONS, EdgarClient, list_filings, tickers_to_ciks
 
 FJA = "https://raw.githubusercontent.com/fja05680/sp500/master/sp500_ticker_start_end.csv"
 WIKI_CURRENT = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"

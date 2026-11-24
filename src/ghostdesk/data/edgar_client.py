@@ -1,4 +1,5 @@
-"""SEC EDGAR access that respects the fair-access policy.
+"""SEC EDGAR access that respects the fair-access policy. Used only to build the stock list (CIK identity of each
+index membership) and the sector of each company.
 
 Every request carries a declared User-Agent read from the SEC_USER_AGENT environment variable (or a gitignored
 `.env` file in the repo root). Requests are limited to well under 10 per second and cached on disk, so nothing is
@@ -14,11 +15,12 @@ from pathlib import Path
 
 import requests
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-DATA_DIR = REPO_ROOT / "data"
+from ghostdesk.paths import DATA_DIR, REPO_ROOT
+
 SUBMISSIONS = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
 TICKERS = "https://www.sec.gov/files/company_tickers.json"
 ARCHIVE = "https://www.sec.gov/Archives/edgar/data/{cik}/{acc}/{doc}"
+__all__ = ["DATA_DIR", "REPO_ROOT", "EdgarClient", "Filing", "list_filings", "tickers_to_ciks", "user_agent"]
 
 
 def user_agent() -> str:
@@ -123,6 +125,3 @@ def list_filings(client: EdgarClient, cik: int, forms: tuple[str, ...] = ("10-K"
                                   accepted[i])
     return sorted(out.values(), key=lambda f: f.filing_date, reverse=True)
 
-
-def download_filing_html(client: EdgarClient, filing: Filing, store: bool = True) -> str:
-    return client.get(filing.url, store=store).decode("utf-8", errors="replace")

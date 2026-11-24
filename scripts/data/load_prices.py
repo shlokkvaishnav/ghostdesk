@@ -10,8 +10,8 @@ import pandas as pd
 
 from ghostdesk.data.alpaca_client import AlpacaClient, coverage
 from ghostdesk.data.daily_returns import daily_returns
+from ghostdesk.data.edgar_client import DATA_DIR, EdgarClient, tickers_to_ciks
 from ghostdesk.data.sp500_universe import price_symbols
-from ghostdesk.filings.edgar_client import DATA_DIR, EdgarClient, tickers_to_ciks
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--start", default="2016-01-01")

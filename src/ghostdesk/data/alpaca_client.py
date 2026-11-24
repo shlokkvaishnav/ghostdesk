@@ -16,7 +16,7 @@ import time
 import pandas as pd
 import requests
 
-from ghostdesk.filings.edgar_client import REPO_ROOT
+from ghostdesk.paths import REPO_ROOT
 
 BARS = "https://data.alpaca.markets/v2/stocks/bars"
 

@@ -106,68 +106,6 @@ member-days are lost, most of them in 2010-2015. Many of the lost companies were
 loss is not random. Thus the study reports its results by year, and a check on 2016-2025 alone (98.5% coverage; 2010-2015: 93.9%)
 is part of the robustness tests.
 
-## Report times
-The SEC submissions JSON gives each report's `acceptanceDateTime` in UTC. This was checked against the EDGAR index
-header, which gives New York time (Apple 10-K, 2024: header 06:01:36 New York, JSON 10:01:36 UTC).
-
-**Rule:** a report can be used at the first NYSE open (09:30 New York) that is strictly after the acceptance time
-(`ghostdesk.data.market_calendar.first_open_after`). A report accepted at 16:05 is used at the next day's open. A report
-accepted at 08:00 is used at 09:30 on the same day.
-
-## Report index
-`scripts/data/build_filing_index.py` lists every 10-K and 10-Q (and their amendments) of the mapped CIKs since 2009,
-from the SEC submissions JSON (`ghostdesk.filings.filing_index`).
-
-| | |
-|---|---|
-| CIKs | 791 |
-| Reports | 47,719: 11,584 10-K, 34,783 10-Q, 1,352 amendments |
-| Reports with an acceptance time | all |
-| Original reports with a like-with-like earlier report | 92.6% |
-
-**Like with like** (as in the paper): a 10-K is compared with the previous 10-K, and a 10-Q with the 10-Q for the
-same fiscal quarter one year before (Q2 with Q2). The earlier report's period must end 1 year before (± 20 days),
-so a change of fiscal year gives no pair, not a wrong one. Amendments are kept in the index, but they are never
-paired, because an amendment often changes only a few items. A check stops the build if any report is paired with
-a later one.
-
-## Text-change features
-For each paired report, `scripts/data/extract_text_features.py` (run by the `features` workflow) keeps only numbers, not the
-text (`ghostdesk.text_signal.report_features`):
-- **Text:** the report's main document, with number tables removed (layout tables that hold text are kept). New
-  lines come only from block elements, so a heading split over several HTML elements stays one line, and line
-  wraps in the HTML source do not cut sentences.
-- **Parts:** the full text; risk factors (Item 1A); MD&A (10-K Item 7, 10-Q Part I Item 2). A heading must be a short
-  line, so a cross-reference such as "Item 7, Management's Discussion ... of this report" does not start a section.
-  A part shorter than 200 words (often "no material changes") is NaN, not a guess.
-- **Measures:** cosine and Jaccard as in the paper, and an edit similarity: sentences are aligned first, then words
-  inside the changed blocks, so that one changed number is one changed word.
-- **Numbers:** revenue, net income, assets and equity from the report's own XBRL instance (own period only, no
-  segments). For each period the first reported value is kept, so a later restatement never replaces it.
-
-**Result** (`features` workflow, 16 November 2026: 6 parts, about 3-4 hours each):
-
-| | 10-K | 10-Q |
-|---|---|---|
-| Reports (all paired reports filed while the company was in the index, 2009-2025) | 30,514 in total, from 765 companies | |
-| Full-text measures | 100% | 100% |
-| Risk-factor measures | 95.4% | 18.0% (most 10-Qs only say "no material changes") |
-| MD&A measures | 88.4% | 94.7% |
-| XBRL assets / equity / net income / revenue | 96.6% / 88.9% / 85.6% / 84.8% | 97.9% / 89.9% / 86.8% / 85.2% |
-
-- 44 reports (0.14%) failed, mostly with network errors. They have no measures.
-- XBRL values are present for 81% of the reports filed in 2010 and for 98.6% of the later reports.
-- Revenue is often missing because banks and some other companies use other XBRL item names. The size control
-  does not use revenue (it uses dollar volume from prices and total assets), so this does not affect it.
-- The cosine measure is almost always 0.99 or more, so it separates reports badly (as in the paper). The edit
-  measure (median 0.68) and Jaccard (median 0.82) vary much more.
-
-**Limits:**
-- Some large companies (for example JPMorgan, Exxon Mobil) put MD&A in the annual report to shareholders
-  (Exhibit 13), not in the main 10-K document. Their MD&A part is NaN, and their full text is shorter. The main
-  measure is the full text, as in the paper.
-- Reports before mid-2009 often have no XBRL; their numbers are NaN.
-
 ## Prices
 `scripts/data/load_prices.py` gets daily bars from Alpaca (free plan, all US exchanges, history from 2016), adjusted for
 splits and dividends, and also raw. They are kept in `data/` (not in git).
@@ -194,3 +132,13 @@ companies (EVHC on 2016-12-02: the old Envision before, the merged company after
 |---|---|
 | Symbols with data | 687 of 687 requested |
 | Member-days 2016-2025 with a daily bar | 98.0% |
+
+## Price store
+Since the pivot (decision D26) the prices live in a point-in-time store: every nightly load is a new file that is
+never changed, and a read at a past date sees the prices as they were known that day. Adjusted prices change when a
+company pays a dividend or splits its shares, so this matters: on the first extension (2026-11-24) 35 of 527 symbols
+had a new dividend or split, and the store keeps both versions.
+
+## Sectors
+Each company's sector is its SEC SIC code grouped into 25 groups (the 2-digit major group, or the SIC division when
+a group has fewer than 10 companies). The same rule covers companies that left the index, which GICS sectors do not.

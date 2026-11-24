@@ -52,7 +52,7 @@ def documented_columns() -> dict[str, list[str]]:
 
 def test_data_contracts_match_present_files():
     cols = documented_columns()
-    assert {"data/universe.parquet", "data/filings_index.parquet", "data/features.parquet",
+    assert {"data/universe.parquet", "data/price_symbols.parquet", "data/sectors.parquet",
             "data/returns_daily.parquet"} <= set(cols)
     checked = 0
     for f, expected in cols.items():

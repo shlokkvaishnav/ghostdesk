@@ -3,8 +3,8 @@ import json
 
 import pytest
 
-from ghostdesk.filings import edgar_client
-from ghostdesk.filings.edgar_client import EdgarClient, list_filings
+from ghostdesk.data import edgar_client
+from ghostdesk.data.edgar_client import EdgarClient, list_filings
 
 
 class Resp:

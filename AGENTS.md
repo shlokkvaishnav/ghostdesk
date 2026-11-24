@@ -5,14 +5,15 @@ that your task needs. The documents describe the code; you should rarely need to
 exists.
 
 ## 1. The project in short
-Ghostdesk is a research and paper-trading system for US stocks, with four parts:
-1. **Signal** — how much a company's 10-K/10-Q text changed since its comparable earlier report ("lazy prices",
-   Cohen, Malloy and Nguyen 2020), tested without look-ahead or survivorship bias.
-2. **Return models** — LightGBM on point-in-time stock features and a CNN on price-chart images, each tested once
-   under its own pre-registration (`return_models/`; decisions D18, D19).
-3. **Execution** — VWAP child orders over the first hour. A PPO agent was compared with TWAP, VWAP and
-   Almgren-Chriss on replayed real minute bars (Step 4); it did not beat VWAP, so the live desk uses VWAP.
-4. **Live** — one GitHub Actions job per US trading day on Alpaca paper trading, and a static GitHub Pages site.
+Ghostdesk is a quant research platform for next-day cross-sectional prediction on the survivorship-free S&P 500,
+with a nightly paper-trading loop on Alpaca (decision D26). Parts:
+1. **Data** — the point-in-time S&P 500 (`data/sp500_universe.py`) and a point-in-time price store with as-of reads
+   (`data/store.py`).
+2. **Features** — a small expression language compiled to vectorized numpy, with a content-hashed cache.
+3. **Models and backtests** — one model interface, a walk-forward backtester with costs, a portfolio optimizer and
+   an experiment registry (`research/`).
+4. **Live** — each night after the close every model predicts every member into an append-only ledger, and the
+   paper account trades the pre-registered ensemble with market-on-open orders.
 
 ## 2. Where to find what
 | Need | Document |
@@ -28,23 +29,21 @@ Ghostdesk is a research and paper-trading system for US stocks, with four parts:
 | Data method and coverage (public) | [docs/data.md](docs/data.md) |
 
 ## 3. Hard rules (do not break)
-1. **No look-ahead.** A report is usable only at the first NYSE open strictly after its SEC acceptance time
-   (`data/market_calendar.py:first_open_after`). Numbers come from each report's own XBRL, first reported value only
-   (`filings/xbrl.py`). Never use the SEC companyfacts or frames APIs.
+1. **No look-ahead.** Features use data through the close of day t; the label is the open(t+1) to open(t+2) residual
+   return. Research reads prices only through `data.store.PriceStore`.
 2. **No survivorship bias.** The stock list on a date is the S&P 500 on that date (`data/sp500_universe.py`).
-3. **The test period 2022-2025 is used once**, after the pre-registration is committed. Build 2016-2019, check
-   2020-2021. Do not tune anything on 2022-2025 data.
+3. **The test period 2023-01 to 2026-10 is used once**, after the pre-registration is final, committed and stamped
+   (`research/holdout_lock.py`). Train 2016-2020, validate 2021-2022. Do not tune anything on test data.
 4. **Secrets.** Never print, log, commit or echo `.env` values. Check a key only by name:
    `grep -c "^NAME=" .env`. GitHub secrets: `SEC_USER_AGENT`, `ALPACA_API_KEY`, `ALPACA_SECRET_KEY`, `STATE_KEY` (encrypts release files,
    D25; a copy is in `.env`).
 5. **No raw data in git.** `data/` is gitignored. Publish only statistics and charts.
-6. **SEC fair access.** At most 8 requests per second in total (all parallel jobs together), with the declared
-   User-Agent. Use `EdgarClient`; never call SEC URLs with plain `requests`.
-7. **No long jobs on the owner's Mac.** A job of more than about 10 minutes runs on GitHub Actions (or Kaggle CPU).
+6. **SEC fair access.** At most 8 requests per second, with the declared User-Agent. Use `EdgarClient`.
+7. **No long jobs on the owner's Mac.** A job of more than about 10 minutes runs on GitHub Actions or Kaggle.
 8. **Silent automation.** Scheduled or long workflows must not fail visibly (no notification emails): steps use
    `continue-on-error`, and health is written to a file or the site.
 9. **Commits** use the owner's GitHub noreply address and **never** a `Co-Authored-By` line.
-10. **Writing.** README, repo description and public docs use plain ASD-STE100 English.
+10. **Writing.** README, repo description and public docs use plain, normal English.
 
 ## 4. Commands
 ```bash
@@ -52,9 +51,9 @@ make install          # .venv with the package and dev tools
 make check            # ruff + all tests + strict docs build (run before every commit)
 make test             # tests only
 make universe         # rebuild data/universe.parquet          (about 10 min with a warm SEC cache)
-make index            # rebuild data/filings_index.parquet     (about 2 min with a warm cache)
-make prices           # rebuild prices and returns (Alpaca)   (about 5 min)
-make features RUN=<id># join the shards of a `features` workflow run
+make prices           # the 2016-2025 seed load (Alpaca)        (about 5 min)
+make update           # append new sessions to the price store   (under a minute a day)
+make sectors          # data/sectors.parquet from the SEC cache
 ```
 Without `make`: `PYTHONPATH=src .venv/bin/python -u scripts/<name>.py` (macOS hides `.pth` files, so set
 `PYTHONPATH=src`).

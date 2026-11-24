@@ -1,12 +1,12 @@
 [project]
 name = "ghostdesk"
 version = "0.1.0"
-description = "A trading desk with no people at it: point-in-time US stock data, pre-registered tests of a text signal and ML return models, and live paper trading"
+description = "A quant research platform for next-day S&P 500 prediction: point-in-time store, expression-language features, model zoo, walk-forward backtests, optimizer, and a nightly paper-trading loop"
 requires-python = ">=3.10"
-dependencies = ["numpy", "pandas", "pyarrow", "requests", "gymnasium", "lxml"]
+dependencies = ["numpy", "pandas", "pyarrow", "requests", "lxml", "duckdb", "cvxpy", "lightgbm"]
 
 [project.optional-dependencies]
-ml = ["torch", "stable-baselines3", "lightgbm"]
+ml = ["torch"]
 dev = ["pytest", "ruff", "mkdocs-material==9.5.39", "lightgbm", "pyyaml"]
 
 [build-system]

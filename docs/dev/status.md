@@ -13,8 +13,14 @@ Updated 2026-11-24. The project is being turned into a quant research platform (
 | 1. Sectors | 709 companies, 25 SIC groups | `sectors.parquet` |
 | 2. Feature engine | 158 Alpha158 factors equal to plain pandas; 1,354 nodes → 357 unique; 1,762 x 635 panel cold 6.8-7.6 s, warm 0.2-0.4 s; 23.5-29.7x faster than pandas on 50 symbols | `data/results/bench_features.json`, `tests/test_features.py` |
 
+| 3. Walk-forward | panel 2016-2022 (1,762 x 635), yearly folds 2018-2022; all four local models in 83 s (LightGBM 82 s); whole script 225 s with the optimizer and the rerun check | `data/results/validation.json` (`timing_s`) |
+| 3. Validation 2021-2022 (501 sessions) | rank IC: reversal 1d 0.0089, reversal 5d 0.0072, ridge 0.0070, LightGBM 0.0108 (t 3.1). Decile books lose money after the spread estimate (net Sharpe -0.3 to -1.2) | `validation.json` (`models`) |
+| 3. Optimizer (LightGBM scores) | median solve 62 ms (p95 121 ms), 503/503 optimal; turnover 0.83 vs 2.60 for the decile book; net of spread +3.3 bps/day (Sharpe 1.38) vs -5.1 bps/day (-0.91); at a fixed 5 bps both lose (-0.8 and -7.3 bps/day) | `validation.json` (`optimizer`) |
+| 3. Registry | LightGBM walk-forward rerun bit-identical (run key `ad1f7ca4370f4bc2`) | `validation.json` (`verify`) |
+
 ## Next
-3. Model zoo, walk-forward backtester, optimizer, experiment registry.
+3. Kaggle: Transformer and foundation-model kernels pushed 2026-11-24, still queued; GPU on hold for another
+   project (owner's decision). Their scores enter `run_validation.py` from `data/kaggle/out/`.
 4. Pre-registration of the locked test (draft first; the owner approves before it is final and stamped).
 5. Nightly live loop, prediction ledger, fault-injection harness.
 6. Cloudflare Worker trigger and the new site.

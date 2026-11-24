@@ -24,7 +24,7 @@ scores them forward; no order is placed.
 | 4. Pre-registration | draft committed (`Status: draft`, not stamped); the lock stays closed | `docs/preregistration-platform.md` |
 | 5. Nightly loop | ledger, frozen models, nightly job; the order path is kept in the code but disabled (D38); fault injection: 500 scenarios, 0 violations | `data/results/fault_injection.json` |
 | 5. Dry night on real data | 2026-11-23: 500 members, 4 models, 1,996 predictions, optimized book of 143 stocks (gross 2.0, net 0); design 2.4 s, optimizer 0.6 s | local dry run, 2026-11-24 |
-| 6b. Site | new page: forward-scored ledger, tonight's calls, model leaderboard, health; no account curve (nothing is traded); rebuilt by each nightly run, no commit | `web/` |
+| 6b. Site | new page: how it works, the 2021-2022 historical validation (all seven models, optimizer vs decile book, from `web/assets/validation.json`), forward-scored ledger, tonight's calls, model leaderboard, health; every live panel has an empty state when `data/live.json` is missing; `/explore/` forwards to the page; no account curve (nothing is traded); rebuilt by each nightly run, no commit | `web/` |
 | 6a. Trigger | Cloudflare Worker code and setup guide (owner deploys) | `worker/`, [trigger-setup.md](trigger-setup.md) |
 
 | 7. Forward evaluation | scoring of the ledger (rank IC, hit rate, error, zero-signal and reversal baselines), book tracking (return, Sharpe, drawdown, turnover, Corwin-Schultz cost), validation-versus-forward table and page section; runs on an empty ledger ("0 days of forward data"); no forward result exists yet | `scripts/live_eval.py`, `tests/test_evaluate.py`, D37 |

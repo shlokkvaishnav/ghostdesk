@@ -34,7 +34,29 @@
   .board td { text-align: right; padding: .55rem .5rem; border-top: 1px solid var(--rule); }
   .board th:first-child, .board td:first-child { text-align: left; }
   .board td:first-child { font-weight: 600; }
-  .scroll { overflow-x: auto; }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .scroll table.board { min-width: 34rem; }
+  .scroll table.board.kv { min-width: 0; }
+  .board th:first-child, .board td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; }
+  .board td.dash { color: var(--muted); }
+  .board td[rowspan] { vertical-align: top; }
+  .board tr.cont td { border-top-style: dotted; }
+  .board tr.cont td:first-child { position: static; font-weight: 400; background: none; }
+  .scroll table.board.fw { min-width: 0; }
+  @media (max-width: 30rem) { .board { font-size: .84rem; } .board th, .board td { padding-left: .3rem; padding-right: .3rem; } .board th:first-child, .board td:first-child:not(.metric) { padding-left: 0; } .board .kind { font-size: .7rem; } }
+  .board td.metric { text-align: left; white-space: nowrap; color: var(--muted); }
+  .board .kind { display: block; font: 400 .75rem/1.2 var(--sans); color: var(--muted); }
+  .note { color: var(--muted); font-size: .85rem; margin: .8rem 0 0; }
+  .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 52rem) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 30rem) { .steps { grid-template-columns: 1fr; } }
+  .step b { display: block; font: 600 1.05rem/1.25 var(--serif); margin-bottom: .35rem; }
+  .step p { margin: 0; color: var(--muted); font-size: .92rem; }
+  .step .n { font: 600 .74rem/1 var(--sans); letter-spacing: .12em; color: var(--accent); display: block; margin-bottom: .55rem; }
+  .vs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 18px; overflow: hidden; margin-bottom: 1.2rem; }
+  .vs .stat b small { font: 500 .85rem/1 var(--sans); color: var(--muted); margin-left: .3rem; }
+  .picks .head { font: 600 .72rem/1.2 var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; border-top: 0; padding-top: 0; }
+  .picks .head + li { border-top: 0; }
 </style>
 </head>
 <body>
@@ -47,9 +69,28 @@
   <header class="hero">
     <div class="kicker">Nightly predictions · S&amp;P 500 · scored forward</div>
     <h1>Every model, every stock, every night</h1>
-    <p class="sub">After each close the frozen models predict the next day for all 500 stocks. The predictions go into an append-only ledger before the next open, and each one is scored once its two next opens exist. No orders are sent: order execution is off.</p>
+    <p class="sub">After each close the frozen models predict the next day for <span id="n-stocks">about 500</span> stocks. The predictions go into an append-only ledger before the next open, and each one is scored once its two next opens exist. No orders are sent: order execution is off.</p>
     <div class="stats" id="stats"></div>
+    <p class="note" id="stats-note" hidden></p>
   </header>
+
+  <section>
+    <h2>How it works</h2>
+    <p class="cap">A research platform for next-day stock prediction. Nothing here sends an order.</p>
+    <div class="grid steps">
+      <div class="panel step"><span class="n">1 · DATA</span><b>Point-in-time S&amp;P 500</b><p>Survivorship-free: each day uses the index members of that day, including the ones later removed, and only data known before the close.</p></div>
+      <div class="panel step"><span class="n">2 · MODELS</span><b>ML and deep-learning models</b><p>Baselines, ridge, LightGBM, a transformer and two pretrained forecasters (Chronos-2, TimesFM 2.5) predict each stock's next-day residual return: its move net of market and sector.</p></div>
+      <div class="panel step"><span class="n">3 · PORTFOLIO</span><b>Risk-constrained optimizer</b><p>A cvxpy optimizer turns the scores into a long-short book with limits on position size, sector and beta exposure, and a penalty on trading costs.</p></div>
+      <div class="panel step"><span class="n">4 · PAPER TRADING</span><b>Order execution is off</b><p>Every night the predictions and the target book go into an append-only ledger before the next open and are scored forward. No order is sent.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Historical validation, 2021–2022</h2>
+    <p class="cap" id="val-cap">Historical validation, not an independent test: these two years were used to choose the models and the optimizer settings, so they are in-sample for those choices. Net figures include the bid-ask spread cost.</p>
+    <div class="vs" id="val-opt"></div>
+    <div class="panel scroll" id="val-models"></div>
+  </section>
 
   <section>
     <h2>Tonight's calls</h2>
@@ -58,6 +99,7 @@
       <div class="panel"><div class="legend"><span><i style="background:var(--ok)"></i>Expected to beat its sector</span></div><ul class="picks" id="top"></ul></div>
       <div class="panel"><div class="legend"><span><i style="background:var(--accent)"></i>Expected to trail its sector</span></div><ul class="picks" id="bottom"></ul></div>
     </div>
+    <p class="note">Score: the ensemble's rank of the stock on a 0–100 scale, where 50 is neutral, 100 the strongest expected outperformer and 0 the strongest expected underperformer.</p>
   </section>
 
   <section>
@@ -67,7 +109,7 @@
   </section>
 
   <section>
-    <h2>Historical validation vs independent forward test</h2>
+    <h2>Independent forward test</h2>
     <p class="cap" id="fwd-cap">The 2021-2022 numbers were used to choose the models. Only the forward test, scored on days after the models were frozen, is independent evidence.</p>
     <div class="panel scroll" id="forward"></div>
   </section>

@@ -90,7 +90,8 @@ Producer: `scripts/data/build_sectors.py`. One row per CIK with prices or in tod
 Measured numbers that the docs quote, one file per script (`bench_features.json`: engine and pandas times, cache
 size, reuse counts, differing factors; `validation.json`: per-model validation metrics, run keys, optimizer, timing,
 bit-identical check; `fault_injection.json`: scenarios, runs, crashes, violations). Copies of `bench_features.json` and
-`validation.json` are committed in `docs/results/` after each run.
+`validation.json` are committed in `docs/results/` after each run. The page reads its own copy,
+`web/assets/validation.json`, which `tests/test_web.py` keeps equal to `docs/results/validation.json`.
 
 ### Live state: data/live/ (Actions cache `nightly-state-*`, encrypted copy in the release `nightly-state`)
 Producer: `scripts/live_desk.py`. `store/` (a `data.store` of about 600 days for today's members), `ledger/`

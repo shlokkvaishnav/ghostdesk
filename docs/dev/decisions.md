@@ -362,8 +362,16 @@ the decision of an old entry — add a new entry that replaces it.
 - **Why:** 158 Alpha158 factors have 1,354 nodes but only 357 unique ones, so reuse alone removes 74% of the work;
   wide matrices avoid a group-by per operation. `Ref` refuses negative lags, so no factor can read a later session
   (tested by changing all later data).
-- **Rejected:** pandas per stock (the baseline: about 24-30x slower on the same data); numba (one more compiled
+- **Rejected:** pandas per stock (the baseline: about 25-34x slower on the same data); numba (one more compiled
   dependency for a gain the matrix form already gives); Qlib's own engine (ties the data store to its format).
+- **Accuracy (checked 2026-11-24):** on the real panel (1,762 x 635, 50 symbols vs pandas) 151 of 158 factors agree
+  with plain pandas to a relative 1e-6 (|a-b|/(|b|+1e-6)); the tests use rtol 1e-6, atol 1e-9. Cause of the rest, found
+  by an exact-fraction check: all data is float64 (no float32), ddof and NaN handling agree. (1) Constant windows (a
+  price stuck for weeks, e.g. ADT): pandas' running std leaves about 1e-8, the engine gives the exact 0; the baseline
+  now returns 0 too (STD, WVMA). (2) Slope and residual in a constant window were 1e-12 instead of 0: a real defect,
+  fixed with a test, engine version 2. (3) The 7 left (BETA5/10, RSQR5/10, RESI5/10/20, 0.001-0.05% of cells): the
+  running sums lose about 1e-12 in absolute value; pandas' polyfit matches the exact value. Not fixed: it would need
+  a per-window fit (the O(T N d) cost the engine avoids); the values are 1e-12 off when the factor itself is near 0.
 - **Semantics:** a window needs all values; comparisons with a missing side are missing. These differ from Qlib's
   partial windows, on purpose: a factor value then always has the same meaning.
 

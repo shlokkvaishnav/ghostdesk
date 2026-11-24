@@ -24,8 +24,8 @@ Details of every module: [modules](dev/modules.md). Every design choice and why:
 | Rate limits respected | At most 170 requests a minute (limit 200); 429 retried | `test_live.py::test_broker_paces_requests_and_keeps_retrying_rate_limits` |
 | No failure emails | Every step of the scheduled workflows continues on error | `test_workflows.py` |
 | Features never read a later session | `Ref` refuses negative lags; changing all later data changes no earlier value | `test_features.py::test_no_feature_reads_a_later_session` |
-| Engine = plain pandas | All 158 factors agree with a pandas implementation | `test_features.py::test_all_158_factors_match_plain_pandas` |
-| Results can be made again | Run key = data + code + config; a rerun of LightGBM gives the same bytes | `test_research.py::test_lightgbm_is_bit_identical_on_rerun`, `data/results/validation.json` |
+| Engine = plain pandas | All 158 factors agree with a pandas implementation (rtol 1e-6, atol 1e-9); on the real panel 151 of 158 agree to 1e-6, the other 7 differ by rounding (D28) | `test_features.py::test_all_158_factors_match_plain_pandas`, `docs/results/bench_features.json` |
+| Results can be made again | Run key = data + code + config; a rerun of LightGBM gives the same bytes | `test_research.py::test_lightgbm_is_bit_identical_on_rerun`, `docs/results/validation.json` |
 | Optimizer constraints hold | Dollar, beta and sector neutral, 2% cap, gross 2, non-members 0 | `test_research.py::test_optimizer_respects_every_constraint` |
 | Predictions before orders | No order for a session without its ledger file; the ledger is never rewritten | `test_nightly.py`, invariant I5 |
 | Orders only in Alpaca's OPG window | 19:00-09:28 New York time, both seasons | `test_nightly.py::test_window_follows_new_york_time_in_winter_and_summer` |

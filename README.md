@@ -11,12 +11,12 @@ trades the ensemble at the next open.
   price store built from immutable Parquet batches read through DuckDB, so a backtest sees prices as they were
   known on that day.
 - **Feature engine.** A small expression language (`Rank(Ref($close,5)/$close)`) parsed to an AST, with shared
-  subexpressions computed once and results cached by content hash. The 158 Alpha158 factors match a plain pandas
-  version exactly and run about 24-30x faster.
+  subexpressions computed once and results cached by content hash. 151 of the 158 Alpha158 factors match a plain pandas
+  version to 1e-6 (the other 7 differ only by rounding in tiny values; see docs/engineering.md) and run about 28x faster.
 - **Models and backtests.** One interface for reversal, ridge, LightGBM, a small Transformer and zero-shot
   time-series foundation models; walk-forward folds with a purge; trading costs from a spread estimate.
 - **Optimizer.** A PCA risk model and a cvxpy problem (dollar, beta and sector neutral, 2% per stock, turnover
-  cost) solved in about 60 ms a night.
+  cost) solved in a median of 63 ms (p95 119 ms) on a laptop, 503 of 503 solves optimal.
 - **Experiment registry.** Every result is keyed by data, code commit and config, and can be regenerated
   bit for bit.
 - **Nightly loop.** Ledger first, then market-on-open orders, with crash recovery, idempotent reruns and a kill

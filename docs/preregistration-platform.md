@@ -41,15 +41,15 @@ validation IC (2021-2022, `data/results/validation.json`). With the four local m
 
 | Model | Validation IC | Weight |
 |---|---|---|
-| reversal_1d | 0.00887 | 0.262 |
-| reversal_5d | 0.00718 | 0.212 |
-| ridge | 0.00702 | 0.207 |
-| lightgbm | 0.01084 | 0.320 |
+| reversal_1d | 0.00887 | 0.269 |
+| reversal_5d | 0.00718 | 0.217 |
+| ridge | 0.00702 | 0.213 |
+| lightgbm | 0.00996 | 0.302 |
 
-The Transformer now has validation scores (Kaggle, 2026-11-24): IC 0.00817 (t 1.35), registry run `52c2ee1a28506fc7`.
+The Transformer now has validation scores (Kaggle, 2026-11-24): IC 0.00817 (t 1.35), registry run `107d03dbbd2c2ec4`.
 It does not run every night yet, so it is not in the table. Zero-shot validation (2021-2022, before every
 cutoff): Chronos-2 IC -0.00081, TimesFM-2.5 IC -0.00154 (weight 0 by the rule); Kronos-small has no validation
-scores yet (out of GPU memory on Kaggle). If the Transformer or a foundation model has validation scores and can run every night before this file is final,
+scores (it failed with CUDA out of memory on Kaggle); 7 models have validation scores. If the Transformer or a foundation model has validation scores and can run every night before this file is final,
 it joins by the same rule and the table is recomputed. **Open for the owner:** whether to wait for the Kaggle
 results (GPU on hold) before finalizing.
 

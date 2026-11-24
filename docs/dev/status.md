@@ -19,6 +19,8 @@ Updated 2026-11-24. The project is being turned into a quant research platform (
 | 3. Registry | LightGBM walk-forward rerun bit-identical (run key `ad1f7ca4370f4bc2`) | `validation.json` (`verify`) |
 | 4. Pre-registration | draft committed (`Status: draft`, not stamped); the lock stays closed | `docs/preregistration-platform.md` |
 | 5. Nightly loop | ledger, OPG orders, frozen models, live job; fault injection: 500 scenarios, 0 violations | `data/results/fault_injection.json` |
+| 5. Dry night on real data | 2026-11-23: 500 members, 4 models, 1,996 predictions, optimized book of 143 stocks (gross 2.0, net 0); design 2.4 s, optimizer 0.6 s | local dry run, 2026-11-24 |
+| 6b. Site | new page: account vs SPY, tonight's calls, model leaderboard from the ledger, health; rebuilt by each live run, no commit | `web/` |
 | 6a. Trigger | Cloudflare Worker code and setup guide (owner deploys) | `worker/`, [trigger-setup.md](trigger-setup.md) |
 
 ## Next
@@ -26,7 +28,7 @@ Updated 2026-11-24. The project is being turned into a quant research platform (
    project (owner's decision). Their scores enter `run_validation.py` from `data/kaggle/out/`.
 4. Owner: approve the pre-registration; then set it final, stamp it, commit the proof, run the test once.
 5. Owner: TRADING=off, flatten the monthly book, publish the frozen models, merge, deploy the Worker, TRADING=on.
-6. The new site.
+6. Kaggle scores (when the GPU is free) into `run_validation.py`, then the ensemble rule again.
 
 ## Known open items
 - The index intervals were built on 2026-11-16 from Wikipedia; changes to the index after that date reach the

@@ -13,6 +13,11 @@ Each box is a script in `scripts/`; each arrow is a data file in `data/` (gitign
  SEC submissions JSON ──────────▶ data/build_sectors.py ────────────▶ sectors.parquet
  Alpaca daily bars (2016-) ─────▶ data/load_prices.py (seed, once) ─▶ prices_daily{,_raw}.parquet
                                  data/update_prices.py (each night) ▶ store/bars/{adj,raw}/<batch>.parquet
+ store ─▶ research/dataset.py (panel, label) ─▶ features/ (158 factors) ─▶ research/models.py
+       ─▶ research/backtest.py + optimizer.py ─▶ research/registry.py ─▶ data/results/*.json
+ Kaggle (kaggle/): Transformer, foundation models ─▶ data/kaggle/out/ ─▶ the same backtest
+ live_desk.py night (GitHub Actions, started by the Worker): members ─▶ data/live/store ─▶ frozen models
+       ─▶ ledger ─▶ ensemble ─▶ optimizer ─▶ OPG orders ─▶ night record ─▶ scores ─▶ site-data/live.json
 ```
 
 ## Layers (`src/ghostdesk/`)
@@ -20,8 +25,10 @@ Each box is a script in `scripts/`; each arrow is a data file in `data/` (gitign
 |---|---|---|
 | `paths.py` | repository and data paths | — |
 | `data/` | SEC client, S&P 500 universe, Alpaca bars, the point-in-time store, spread estimate, sectors | DuckDB |
-| `research/` | the test lock | `data/` |
-| `live/` | Alpaca paper broker, today's members, whole-share orders, page pieces, book risk | `data/` |
+| `features/` | expression language, kernels, engine with cache, Alpha158, pandas baseline | numpy, scipy |
+| `research/` | panel and label, model zoo, backtester, optimizer, registry, the test lock | `data/`, `features/`, LightGBM, cvxpy |
+| `live/` | paper broker, members, ledger, nightly run, live predictions, orders, page pieces, book risk | `research/` |
+| `sim/` | fault-injection harness (fake Alpaca API) | `live/` |
 
 Rules: library code in `src/` does no network I/O at import time, takes clients as arguments (so tests inject
 fakes), and never reads `.env` except through `data.edgar_client.user_agent` and `data.alpaca_client.keys`. Scripts

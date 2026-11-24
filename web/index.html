@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ghostdesk — a paper trading desk for lazy reports</title>
-<meta name="description" content="A live paper-trading desk: it buys S&P 500 companies whose reports changed the least, and sells those that changed the most.">
+<title>ghostdesk — next-day stock predictions, traded every night</title>
+<meta name="description" content="A quant research platform for next-day S&P 500 prediction. Every night every model predicts every stock into a public ledger, and a paper account trades the ensemble at the next open.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238c2346'/%3E%3Cpath d='M9 21V12a7 7 0 0 1 14 0v9l-2.3-1.6L18.4 21 16 19.4 13.6 21l-2.3-1.6z' fill='white'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/style.css">
 <style>
@@ -16,102 +16,63 @@
   .pos { color: var(--ok); } .neg { color: var(--accent); }
   .legend { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; font-size: .85rem; color: var(--muted); margin-bottom: .6rem; }
   .legend i { display: inline-block; width: .8rem; height: .8rem; border-radius: 3px; margin-right: .35rem; vertical-align: -.1rem; }
-  .find { font: 500 .9rem/1 var(--sans); padding: .55rem .9rem; border-radius: 99px; border: 1px solid var(--rule); background: var(--card); color: var(--ink); width: 11rem; }
-  .row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .8rem; }
   .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--paper); font-size: .8rem; line-height: 1.35; padding: .45rem .6rem; border-radius: 8px; opacity: 0; transition: opacity .12s; z-index: 9; max-width: 15rem; }
-  .feed { list-style: none; margin: 0; padding: 0; }
-  .feed li { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr) 7rem; gap: .8rem; align-items: center; padding: .55rem 0; border-top: 1px solid var(--rule); font-size: .92rem; }
-  .feed li:first-child { border-top: 0; }
-  .feed .tk { font-weight: 600; }
-  .feed .nm { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  @media (max-width: 40rem) { .feed li { grid-template-columns: 3.4rem minmax(0, 1fr) 3.6rem; gap: .6rem; } }
-  .meter { height: 8px; border-radius: 99px; background: var(--chip); position: relative; }
-  .meter i { position: absolute; top: -3px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--card); }
+  .picks { list-style: none; margin: 0; padding: 0; }
+  .picks li { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) 3.5rem; gap: .8rem; align-items: center; padding: .45rem 0; border-top: 1px solid var(--rule); font-size: .92rem; }
+  .picks li:first-child { border-top: 0; }
+  .picks .tk { font-weight: 600; }
+  .picks .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .bar { height: 8px; border-radius: 99px; background: var(--chip); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; }
   .empty { color: var(--muted); font-size: .95rem; padding: 2.2rem 0; text-align: center; }
-  .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; margin-right: .35rem; }
-  .health { display: flex; gap: 1rem; flex-wrap: wrap; }
-  .q1 { fill: var(--cool); } .q5 { fill: var(--accent); } .qm { fill: var(--muted); opacity: .45; }
-  .hl { stroke: var(--ink); stroke-width: 2; }
+  .health { display: flex; gap: .6rem; flex-wrap: wrap; }
   .badge { font: 600 .78rem/1 var(--sans); padding: .38rem .7rem; border-radius: 99px; background: var(--chip); color: var(--muted); display: inline-flex; align-items: center; gap: .4rem; }
   .badge.bad { background: var(--accent-soft); color: var(--accent); }
-  .big { font: 600 2.6rem/1 var(--serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-  .kv { display: grid; grid-template-columns: 1fr auto; gap: .45rem 1rem; font-size: .92rem; margin-top: 1rem; }
-  .kv span:nth-child(even) { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+  .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; }
+  table.board { width: 100%; border-collapse: collapse; font-size: .92rem; font-variant-numeric: tabular-nums; }
+  .board th { text-align: right; font: 600 .75rem/1.2 var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 0 .5rem .6rem; }
+  .board td { text-align: right; padding: .55rem .5rem; border-top: 1px solid var(--rule); }
+  .board th:first-child, .board td:first-child { text-align: left; }
+  .board td:first-child { font-weight: 600; }
+  .scroll { overflow-x: auto; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <nav class="top">
     <span class="brand">ghostdesk</span>
-    <span style="display:flex;gap:1.2rem;align-items:center"><span class="badge" id="badge"></span><a href="explore/">Explore the research</a><a href="docs/">Method &amp; results</a></span>
+    <span style="display:flex;gap:1.2rem;align-items:center"><span class="badge" id="badge"></span><a href="docs/">How it is built</a></span>
   </nav>
 
   <header class="hero">
-    <div class="kicker">Live paper trading · S&amp;P 500</div>
-    <h1>Lazy reports, traded every month</h1>
-    <p class="sub">The desk reads every 10-K and 10-Q. It buys the companies whose new report is most like the last one, and sells short the companies that rewrote theirs. Fake money, real prices.</p>
+    <div class="kicker">Nightly predictions · S&amp;P 500 · paper money</div>
+    <h1>Every model, every stock, every night</h1>
+    <p class="sub">After each close the models predict tomorrow for all 500 stocks. The predictions go into a public ledger first; then the paper account trades the ensemble at the next open.</p>
     <div class="stats" id="stats"></div>
   </header>
 
   <section>
-    <h2>The desk against the market</h2>
-    <p class="cap">Return since the start, and SPY over the same days. The band is what our 2016–2025 backtest leads us to expect: close to zero, with noise. In the pre-registered test the signal was not found, so this is a live test of the system, not a promise of profit.</p>
-    <div class="panel"><div class="legend"><span><i style="background:var(--accent)"></i>ghostdesk</span><span><i style="background:var(--muted)"></i>SPY</span><span><i style="background:var(--chip);border:1px solid var(--rule)"></i>Expected range (95%)</span></div><div id="curve"></div></div>
+    <h2>The account against the market</h2>
+    <div class="panel"><div class="legend"><span><i style="background:var(--accent)"></i>ghostdesk</span><span><i style="background:var(--muted)"></i>SPY</span></div><div id="curve"></div></div>
   </section>
 
   <section>
-    <div class="row">
-      <div><h2>Every company, by how much its report changed</h2>
-        <p class="cap" style="margin:0">One dot is one company's latest report against the same report a year before, placed by the day it was filed.</p></div>
-      <input class="find" id="find" placeholder="Find a ticker" autocomplete="off" spellcheck="false" aria-label="Find a ticker">
-    </div>
-    <div class="panel">
-      <div class="legend"><span><i style="background:var(--cool)"></i>Sell short: changed most</span><span><i style="background:var(--accent)"></i>Buy: changed least</span></div>
-      <div id="strip"></div>
-    </div>
-  </section>
-
-  <section>
+    <h2>Tonight's calls</h2>
+    <p class="cap" id="tonight-cap">The ensemble's strongest calls for the next open.</p>
     <div class="grid g2">
-      <div>
-        <h2>Where the money is</h2>
-        <p class="cap">Long and short value by sector, in % of the account.</p>
-        <div class="panel" id="sectors"></div>
-      </div>
-      <div>
-        <h2>New reports</h2>
-        <p class="cap">The newest filings the desk has read.</p>
-        <div class="panel"><ul class="feed" id="feed"></ul></div>
-      </div>
+      <div class="panel"><div class="legend"><span><i style="background:var(--ok)"></i>Expected to beat its sector</span></div><ul class="picks" id="top"></ul></div>
+      <div class="panel"><div class="legend"><span><i style="background:var(--accent)"></i>Expected to trail its sector</span></div><ul class="picks" id="bottom"></ul></div>
     </div>
   </section>
 
   <section>
-    <h2>Is the book on target?</h2>
-    <p class="cap">After each rebalance the desk checks its positions against the plan, at today's prices.</p>
-    <div class="grid g2">
-      <div class="panel" id="recon"></div>
-      <div class="panel" id="gross"></div>
-    </div>
-  </section>
-
-  <section>
-    <h2>How much risk does the book carry?</h2>
-    <p class="cap">Measured each day from one year of daily returns of the stocks held. It describes the book; the rules that choose the stocks do not change.</p>
-    <div class="grid g2">
-      <div class="panel" id="risk"></div>
-      <div class="panel" id="risksec"></div>
-    </div>
-  </section>
-
-  <section>
-    <h2>How the orders go out</h2>
-    <p class="cap">Each rebalance is split into small orders over the first hour, in step with the market's usual volume. In our tests this beat a trained RL agent.</p>
-    <div class="panel"><div class="legend"><span><i style="background:var(--muted)"></i>Usual volume, every 5 minutes</span><span><i style="background:var(--accent)"></i>Last rebalance</span></div><div id="vwap"></div></div>
+    <h2>Model leaderboard</h2>
+    <p class="cap">From the ledger: a pick counts as right when its trade made money after costs. Never judge on one day.</p>
+    <div class="panel scroll" id="board"></div>
   </section>
 
   <footer>
-    <p>Paper trading: Alpaca simulates the fills, so the costs here are not real costs. Not investment advice. Reports from SEC EDGAR, prices from Alpaca.</p>
+    <p>Paper trading: Alpaca simulates the fills. Not investment advice. Prices from Alpaca.</p>
     <div class="health" id="health"></div>
   </footer>
 </div>

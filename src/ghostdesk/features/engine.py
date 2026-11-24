@@ -18,7 +18,7 @@ import numpy as np
 from ghostdesk.features import ops
 from ghostdesk.features.expr import Node, canonical, parse, subexpressions
 
-ENGINE_VERSION = "1"
+ENGINE_VERSION = "2"  # 2: a constant window gives an exact 0 slope and residual
 
 
 def data_hash(fields: dict[str, np.ndarray], extra: str = "") -> str:

@@ -1,0 +1,182 @@
+# The nightly prediction run and the whole Pages site (decisions D30, D37, D38). ORDER EXECUTION IS DISABLED:
+# TRADING is fixed to "off" here, there is no flatten or order mode, and the old `live` workflow stays disabled.
+# Turning execution on is a separate, reviewed change (docs/dev/runbook.md, "Before execution is turned on").
+#   schedule        02:00 and 11:30 UTC Tue-Sat: after each weekday session, before the next open (13:30/14:30 UTC).
+#                   A run for a session that already has its ledger file does nothing new.
+#   push            to docs/web/mkdocs/this file on main: site only
+#   manual          mode night or site
+# Failures (D38): a model that is missing, changed or incompatible, a failed night, a missing ledger or evaluation,
+# or a lost state upload fails the run (GitHub then sends its normal failure notice). A successful run is quiet.
+# The site steps keep continue-on-error: a page problem never hides the night's result.
+name: nightly
+on:
+  schedule:
+    - cron: "0 2 * * 2-6"
+    - cron: "30 11 * * 2-6"
+  push:
+    branches: [main]
+    paths: ["docs/**", "web/**", "mkdocs.yml", ".github/workflows/nightly.yml"]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "night or site"
+        default: site
+permissions:
+  contents: write  # download models-v1; upload the encrypted state to the release `nightly-state` (D25)
+  pages: write
+  id-token: write
+concurrency:
+  group: nightly
+  cancel-in-progress: false  # never stop a running night
+env:
+  MODELS_TAG: models-v1  # pinned; never "latest" (D38)
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-live.txt
+      - name: install
+        run: pip install -r requirements-live.txt && pip install --no-deps -e .
+      - id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_MODE: ${{ inputs.mode }}
+        run: |
+          case "$EVENT" in
+            schedule) m=night ;;
+            workflow_dispatch) m="$INPUT_MODE" ;;
+            *) m=site ;;
+          esac
+          case "$m" in night|site) ;; *) m=site ;; esac  # only known modes reach the shell
+          echo "mode=$m" >> "$GITHUB_OUTPUT"
+      - name: models cache
+        id: models-cache
+        uses: actions/cache@v4
+        with:
+          path: data/models-v1
+          key: models-v1-${{ hashFiles('docs/results/MODEL_MANIFEST.json') }}
+      - name: models
+        if: steps.models-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p data/models-v1
+          gh release download "$MODELS_TAG" --dir data/models-v1 --clobber \
+            -p lightgbm.txt -p ridge.npy -p sectors.json -p meta.json \
+            || { echo "::error::could not download the release $MODELS_TAG"; exit 1; }
+      - name: verify models
+        run: |
+          python - <<'EOF'
+          from pathlib import Path
+          from ghostdesk.live.model_release import load_manifest, verify
+          from ghostdesk.live.predict import LIVE_MODELS, load_models
+          h = verify(Path("data/models-v1"), load_manifest(Path("docs/results/MODEL_MANIFEST.json")), LIVE_MODELS)
+          print(f"{len(h)} files match the manifest; loaded {sorted(load_models(Path('data/models-v1')))}")
+          EOF
+      - uses: actions/cache/restore@v4
+        with:
+          path: data/live
+          key: nightly-state-${{ github.run_id }}
+          restore-keys: nightly-state-
+      - name: restore from the release if the cache is lost
+        id: restore
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_KEY: ${{ secrets.STATE_KEY }}
+        shell: bash -eo pipefail {0}
+        run: |
+          # Only an encrypted archive is in the release (D25), decrypted with the STATE_KEY secret.
+          if [ ! -f data/live/ledger/chain.jsonl ] && [ -n "$STATE_KEY" ] \
+             && gh release view nightly-state >/dev/null 2>&1; then
+            mkdir -p data/live "$RUNNER_TEMP/state"
+            # a failed restore must stop the run: a fresh ledger would later replace the saved one
+            gh release download nightly-state --dir "$RUNNER_TEMP/state" -p 'nightly-state.tar.enc' --clobber
+            openssl enc -d -aes-256-cbc -pbkdf2 -md sha256 -iter 100000 -pass env:STATE_KEY \
+              -in "$RUNNER_TEMP/state/nightly-state.tar.enc" | tar -x -C data/live
+            echo "restored from release"
+          fi
+      - name: night
+        if: steps.mode.outputs.mode == 'night'
+        timeout-minutes: 40
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          GHOSTDESK_MODELS: data/models-v1
+          TRADING: "off"  # execution disabled (D38); not read from the repository variable
+        run: python -u scripts/live_desk.py night
+      - name: check the night's outputs
+        if: steps.mode.outputs.mode == 'night'
+        run: |
+          python - <<'EOF'
+          import json
+          from pathlib import Path
+          from ghostdesk.live.ledger import Ledger
+          live = Path("data/live")
+          ok, why = Ledger(live / "ledger").verify()
+          lines = Ledger(live / "ledger").lines()
+          fe = json.loads((live / "forward_eval.json").read_text())
+          assert ok, f"ledger: {why}"
+          last = lines[-1] if lines else None
+          print(f"ledger {len(lines)} sessions, last {last and last['session']} written {last and last['written_at']}")
+          print(fe["compare"]["headline"])
+          EOF
+      - name: keep the state in the release
+        # only after a good restore (or a first run) and a night that left a ledger: never replace it with less
+        if: always() && steps.mode.outputs.mode == 'night' && steps.restore.outcome == 'success' && hashFiles('data/live/ledger/chain.jsonl') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE_KEY: ${{ secrets.STATE_KEY }}
+        run: |
+          # The repository is public, so only an encrypted archive goes to the release (D25).
+          if [ -z "$STATE_KEY" ]; then echo "::error::STATE_KEY is not set; the ledger was not saved"; exit 1; fi
+          gh release view nightly-state >/dev/null 2>&1 || gh release create nightly-state --prerelease \
+            --title "Nightly state (encrypted machine record)" --notes "Encrypted ledger and price store (D25)."
+          tar -C data/live -c . | openssl enc -aes-256-cbc -salt -pbkdf2 -md sha256 -iter 100000 \
+            -pass env:STATE_KEY -out "$RUNNER_TEMP/nightly-state.tar.enc"
+          gh release upload nightly-state "$RUNNER_TEMP/nightly-state.tar.enc" --clobber
+      - uses: actions/cache/save@v4
+        if: always() && steps.mode.outputs.mode == 'night' && steps.restore.outcome == 'success' && hashFiles('data/live/ledger/chain.jsonl') != ''
+        continue-on-error: true
+        with:
+          path: data/live
+          key: nightly-state-${{ github.run_id }}
+      - name: site data
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 10
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          GHOSTDESK_MODELS: data/models-v1
+        run: python -u scripts/live_desk.py site
+      - name: build site
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p _site/data
+          cp -R web/. _site/
+          cp site-data/live.json _site/data/live.json || true
+          cp data/live/forward_eval.json _site/data/forward_eval.json || true
+          mkdocs build --strict -q -d _site/docs
+      - uses: actions/upload-pages-artifact@v3
+        if: always()
+        continue-on-error: true
+        with:
+          path: _site
+  deploy:
+    needs: run
+    if: always() && needs.run.result != 'cancelled'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4

@@ -285,7 +285,7 @@ def run_scenario(sc: Scenario) -> dict:
         broker.submit = lambda sym, q, side, cid, **kw: submit(sym, q, side, f"{cid}-{runs}", **kw)
         broker.open_orders = list
     deps = Deps(broker=broker, now=clock.now, predict=predict, target=target, ledger=ledger, store=store,
-                log=lambda m: None)
+                trading=True, log=lambda m: None)
     seen, done_at, viol, runs, crashes, failed = {}, {}, [], 0, 0, 0
     for i in range(sc.nights):
         s, n = cal.iloc[i], cal.iloc[i + 1]

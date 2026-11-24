@@ -30,6 +30,19 @@ class LedgerError(RuntimeError):
     """A second write for a session, a changed file, or a broken chain."""
 
 
+def first_open_utc(day) -> pd.Timestamp:
+    """The earliest moment a session's opening price can exist: 09:30 New York time on that day (NYSE never opens
+    earlier; early closes change only the close)."""
+    d = pd.Timestamp(day)
+    d = d.tz_localize(None) if d.tz is not None else d
+    return (d.normalize() + pd.Timedelta(hours=9, minutes=30)).tz_localize("America/New_York").tz_convert("UTC")
+
+
+def _utc(t) -> pd.Timestamp:
+    t = pd.Timestamp(t)
+    return t.tz_localize("UTC") if t.tz is None else t.tz_convert("UTC")
+
+
 def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
@@ -132,7 +145,8 @@ class Ledger:
 
 def score(ledger_rows: pd.DataFrame, opens: pd.DataFrame, half_spread: pd.DataFrame | None = None,
           sectors: pd.Series | None = None, fixed_bps: float = 2.0) -> pd.DataFrame:
-    """Realized outcome of each prediction whose two next opens are known. `opens`: session x symbol raw opens.
+    """Realized outcome of each prediction whose two next opens are known. A row whose `made_at` is not earlier than
+    the first realized open (`first_open_utc` of session t+1) is refused (left out); see `refused`. `opens`: session x symbol raw opens.
     Returns the ledger rows with realized (simple return), residual (minus the cross-sectional mean of the night's
     members, by sector when `sectors` is given), cost, pnl (side x realized - cost for picks), profitable, abs_error."""
     if ledger_rows.empty:
@@ -142,6 +156,11 @@ def score(ledger_rows: pd.DataFrame, opens: pd.DataFrame, half_spread: pd.DataFr
     for s, g in ledger_rows.groupby("session"):
         i = days.searchsorted(pd.Timestamp(s), side="right")  # the first session after s
         if i + 1 >= len(days):
+            continue
+        # Refuse a prediction made at or after the first realized price it would be scored on (D38): the ledger
+        # must exist before the outcome does. Such rows are left out of the scores, never scored.
+        g = g[g["made_at"].map(_utc) < first_open_utc(days[i])]
+        if g.empty:
             continue
         a, b = opens.iloc[i], opens.iloc[i + 1]
         g = g.copy()
@@ -160,6 +179,18 @@ def score(ledger_rows: pd.DataFrame, opens: pd.DataFrame, half_spread: pd.DataFr
         g["abs_error"] = (g["pred_return"] - g["realized"]).abs()
         out.append(g)
     return pd.concat(out, ignore_index=True) if out else ledger_rows.iloc[:0]
+
+
+def refused(ledger_rows: pd.DataFrame, opens: pd.DataFrame) -> pd.DataFrame:
+    """The rows that `score` refuses: made at or after the first open of the session after theirs."""
+    if ledger_rows.empty:
+        return ledger_rows
+    days = opens.index
+    first = ledger_rows["session"].map(
+        lambda s: first_open_utc(days[i]) if (i := days.searchsorted(pd.Timestamp(s), side="right")) < len(days)
+        else pd.NaT)
+    late = first.notna() & (ledger_rows["made_at"].map(_utc) >= first)
+    return ledger_rows[late.to_numpy(dtype=bool)]
 
 
 def model_summary(scored: pd.DataFrame) -> pd.DataFrame:

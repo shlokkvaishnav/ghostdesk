@@ -1,8 +1,9 @@
 # Setting up the nightly trigger (Cloudflare Worker)
 
-GitHub starts scheduled runs hours late (decision D23). The nightly run must send its market-on-open orders between
-19:00 and 09:28 New York time, so a Cloudflare Worker starts it on time through GitHub's API (decision D36). The
-GitHub schedule in `live.yml` stays as a backup. The owner does these steps once; nothing here needs a paid plan.
+GitHub starts scheduled runs hours late (decision D23). The nightly run must write its predictions before the next
+open, so a Cloudflare Worker starts it on time through GitHub's API (decision D36). The GitHub schedule in
+`nightly.yml` (02:00 and 11:30 UTC, Tuesday to Saturday) stays as a backup. Order execution is disabled (D38): the
+run writes and scores predictions only. The owner does these steps once; nothing here needs a paid plan.
 
 ## 1. A GitHub token that can only start this repository's workflows
 1. GitHub → Settings → Developer settings → Fine-grained personal access tokens → Generate new token.
@@ -19,10 +20,10 @@ wrangler secret put GITHUB_TOKEN   # paste the token; it is stored by Cloudflare
 wrangler deploy
 ```
 `wrangler.toml` holds the repository name and the two cron lines (UTC): 01:30 Tuesday to Saturday (after each
-weekday session) and 11:00 Tuesday to Saturday (a second chance before 09:28 New York time).
+weekday session) and 11:00 Tuesday to Saturday (a second chance before the open). The Worker starts `nightly.yml`.
 
 ## 3. Check it
-- `wrangler tail` shows `dispatch 30 1 * * 2-6: HTTP 204` at the next cron time; a new `live` run appears in
+- `wrangler tail` shows `dispatch 30 1 * * 2-6: HTTP 204` at the next cron time; a new `nightly` run appears in
   the Actions tab with mode `night`.
 - To test at once: in the Cloudflare dashboard, Workers → ghostdesk-trigger → Settings → Triggers → the cron
   line → "Trigger" (or `wrangler dev --test-scheduled` and open `/__scheduled`).
@@ -30,5 +31,6 @@ weekday session) and 11:00 Tuesday to Saturday (a second chance before 09:28 New
   HTTP 422: the `mode` input is not accepted by the workflow on `main`.
 
 ## 4. Turning it off
-`wrangler delete` removes the Worker. The repository variable `TRADING=off` stops orders without touching the
-trigger (the run still writes predictions to the ledger).
+`wrangler delete` removes the Worker; the GitHub schedule still starts the run, later. There is no order switch to
+turn: `nightly.yml` fixes `TRADING` to `off` in the workflow itself and has no order mode, so the repository variable
+has no effect.

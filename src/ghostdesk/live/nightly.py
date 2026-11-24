@@ -37,6 +37,11 @@ OPG_OPEN = (19, 0)     # Alpaca queues OPG orders sent after 19:00 New York time
 OPG_CLOSE = (9, 28)    # and rejects them from 09:28 until 19:00
 
 
+def trading_enabled(value: str | None) -> bool:
+    """The kill switch `TRADING`: orders only when it is exactly "on". Unset, empty or any other value is off."""
+    return value == "on"
+
+
 @dataclass(frozen=True)
 class NightConfig:
     min_frac: float = 0.2    # a change below this share of the stock's target value is not traded
@@ -60,7 +65,7 @@ class Deps:
     target: Callable[[pd.DataFrame], pd.Series]       # the session's ledger rows -> signed weights per symbol
     ledger: Ledger
     store: Path
-    trading: bool = True
+    trading: bool = False
     log: Callable[[str], None] = print
     notes: dict = field(default_factory=dict)
 
@@ -142,8 +147,25 @@ def run_night(d: Deps, sessions: pd.DataFrame, cfg: NightConfig = NightConfig())
     state = read_state(d.store, s) or {"session": f"{s:%Y-%m-%d}", "runs": [], "orders": [], "rejected": {}}
     state["runs"].append(now.isoformat())
     if not d.ledger.has(s):
+        nxt = sessions[sessions["date"] > s]
+        if nxt.empty:
+            _write(d.store, s, state)
+            return False, f"ledger {s:%Y-%m-%d} not written: no next session in the calendar; no order", {}
+        if d.now() >= nxt["open_utc"].iloc[0]:
+            # the outcome (the next open) already exists: a prediction now is not a forecast (D38). A late trigger
+            # is not a pipeline error, so the run is ok; the session stays missing from the ledger.
+            state["missed"] = "the next open passed before the ledger was written"
+            _write(d.store, s, state)
+            return True, f"session {s:%Y-%m-%d} missed: its next open has passed; no ledger, no order", {
+                "missed": f"{s:%Y-%m-%d}"}
         preds = d.predict(s)
-        rec = d.ledger.append(s, d.now(), preds)
+        made_at = d.now()
+        if made_at >= nxt["open_utc"].iloc[0]:
+            state["missed"] = "the prediction finished after the next open"
+            _write(d.store, s, state)
+            return True, f"session {s:%Y-%m-%d} missed: prediction finished after the next open; no ledger", {
+                "missed": f"{s:%Y-%m-%d}"}
+        rec = d.ledger.append(s, made_at, preds)
         d.log(f"ledger {s:%Y-%m-%d}: {rec['rows']} predictions, {preds['model'].nunique()} models")
     line = next(x for x in d.ledger.lines() if x["session"] == f"{s:%Y-%m-%d}")
     state["ledger"] = {"sha256": line["file_sha256"], "written_at": line["written_at"]}

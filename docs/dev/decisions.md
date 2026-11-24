@@ -456,3 +456,25 @@ the decision of an old entry — add a new entry that replaces it.
 - **Why:** the validation window was used to choose models, so only the forward ledger is independent evidence; a
   short forward sample must be shown as short.
 - **Type check:** mypy runs on the three evaluation modules only (`make typecheck`); the rest is not type-checked.
+
+### D38 — Switch-over: the monthly desk archived, order execution disabled, pinned models, failures fail the run (2026-11-24)
+- **Archive:** the monthly paper desk was archived and closed on 2026-11-24 (198 positions sold, 0 left; equity
+  $100,582.38 from $100,000). Its account record (every order, fill and the portfolio history, without account
+  number, ids or keys) is in `docs/archive/monthly-desk-2026-11/`, written by the read-only
+  `scripts/ops/archive_account.py`.
+- **Execution disabled:** the paper account holds nothing and no order is placed. `nightly.yml` replaces `live.yml`,
+  sets `TRADING` to `off` in the workflow itself (not from the repository variable) and has no flatten or order mode.
+  In the code the kill switch is on only when `TRADING` is exactly `"on"`, and `Deps.trading` defaults to off.
+  Turning execution on is a separate, reviewed change (runbook, "Before execution is turned on").
+- **Pinned models:** ridge and LightGBM are published once as the release `models-v1` with
+  `docs/results/MODEL_MANIFEST.json` (SHA-256, size, training window, package versions). The workflow pins the tag
+  and checks every file against the manifest before the night; a new model version is a new tag and manifest.
+- **Timing guard:** a session's predictions are written only before its next open. A late run records the session
+  as `missed` (not an error), and the ledger and the scoring refuse a prediction made at or after the open it is
+  scored on.
+- **Failure policy (owner's choice):** for `nightly.yml` only, a missing, changed or incompatible model, a failed
+  night, a missing ledger or evaluation, or a lost state upload fails the run, so GitHub sends its normal failure
+  notice. This replaces the old no-notification rule (silent workflows) for this workflow only; a good run stays
+  quiet, and the site steps never fail the run.
+- **State:** a new encrypted release `nightly-state` starts with an empty ledger (owner's choice); the old
+  `live-state` release is not read.

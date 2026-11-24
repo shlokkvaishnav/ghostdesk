@@ -9,10 +9,10 @@ test("dispatch posts to the workflow with the token and mode", async () => {
     calls.push({ url, init });
     return { status: 204 };
   };
-  const r = await dispatch({ REPO: "o/r", GITHUB_TOKEN: "t0k", WORKFLOW: "live.yml", REF: "main" }, "night", fake);
+  const r = await dispatch({ REPO: "o/r", GITHUB_TOKEN: "t0k", WORKFLOW: "nightly.yml", REF: "main" }, "night", fake);
   assert.equal(r.ok, true);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, "https://api.github.com/repos/o/r/actions/workflows/live.yml/dispatches");
+  assert.equal(calls[0].url, "https://api.github.com/repos/o/r/actions/workflows/nightly.yml/dispatches");
   assert.equal(calls[0].init.method, "POST");
   assert.equal(calls[0].init.headers.Authorization, "Bearer t0k");
   assert.deepEqual(JSON.parse(calls[0].init.body), { ref: "main", inputs: { mode: "night" } });

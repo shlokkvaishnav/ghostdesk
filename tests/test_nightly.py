@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ghostdesk.live.ledger import Ledger, LedgerError, model_summary, score
-from ghostdesk.live.nightly import decide, window
+from ghostdesk.live.ledger import Ledger, LedgerError, first_open_utc, model_summary, refused, score
+from ghostdesk.live.nightly import Deps, decide, run_night, trading_enabled, window
 from ghostdesk.sim.fault_injection import run_many, sessions_between
 
 
@@ -62,8 +62,9 @@ def test_ledger_repair_after_a_crash_between_file_and_chain(tmp_path):
 
 
 def test_score_uses_the_next_two_opens_and_costs():
-    rows = pd.DataFrame({"session": pd.Timestamp("2026-12-07"), "model": "a", "symbol": ["A", "B"],
-                         "score": [1.0, -1.0], "rank": [1.0, 0.5], "side": [1, -1], "pred_return": [0.01, np.nan]})
+    rows = pd.DataFrame({"session": pd.Timestamp("2026-12-07"), "made_at": ts("2026-12-08 01:30"), "model": "a",
+                         "symbol": ["A", "B"], "score": [1.0, -1.0], "rank": [1.0, 0.5], "side": [1, -1],
+                         "pred_return": [0.01, np.nan]})
     opens = pd.DataFrame({"A": [100.0, 100.0, 102.0], "B": [50.0, 50.0, 49.0]},
                          index=pd.to_datetime(["2026-12-07", "2026-12-08", "2026-12-09"]))
     s = score(rows, opens, fixed_bps=2.0).set_index("symbol")
@@ -84,3 +85,61 @@ def test_fault_injection_finds_no_violation():
 def test_fault_injection_catches_deliberate_bugs():
     assert run_many(10, mutate="no_window")["violations"] > 0
     assert run_many(40, mutate="dup_ids", p_crash=0.7)["violations"] > 0
+
+
+def test_score_refuses_a_prediction_made_at_or_after_the_first_realized_open():
+    """D38: a prediction is scored only when its ledger time is earlier than the first price it is scored on (the
+    open of the session after its own, 09:30 New York time)."""
+    opens = pd.DataFrame({"A": [100.0, 100.0, 102.0], "B": [50.0, 50.0, 49.0]},
+                         index=pd.to_datetime(["2026-12-07", "2026-12-08", "2026-12-09"]))
+    first = first_open_utc("2026-12-08")
+    assert first == ts("2026-12-08 14:30")  # EST
+    assert first_open_utc("2026-07-07") == ts("2026-07-07 13:30")  # EDT
+
+    def rows(made_at):
+        return pd.DataFrame({"session": pd.Timestamp("2026-12-07"), "made_at": made_at, "model": "a",
+                             "symbol": ["A", "B"], "score": [1.0, -1.0], "rank": [1.0, 0.5], "side": [1, -1],
+                             "pred_return": np.nan})
+    early = rows(first - pd.Timedelta(seconds=1))
+    assert len(score(early, opens)) == 2 and refused(early, opens).empty
+    for late in (first, first + pd.Timedelta(hours=3), ts("2026-12-09 15:00")):
+        r = rows(late)
+        assert score(r, opens).empty, late
+        assert len(refused(r, opens)) == 2
+    mixed = pd.concat([rows(first - pd.Timedelta(hours=1)).iloc[:1], rows(first).iloc[1:]], ignore_index=True)
+    sc = score(mixed, opens)
+    assert sc["symbol"].tolist() == ["A"] and refused(mixed, opens)["symbol"].tolist() == ["B"]
+
+
+class _NoOrders:
+    def __getattr__(self, name):
+        raise AssertionError(f"the broker must not be used: {name}")
+
+
+def _deps(tmp_path, now, trading=False):
+    preds = pd.DataFrame({"model": ["a"] * 20, "symbol": [f"S{i}" for i in range(20)], "score": np.arange(20.0)})
+    clock = {"t": now}
+    return Deps(broker=_NoOrders(), now=lambda: clock["t"], predict=lambda s: preds, target=lambda r: None,
+                ledger=Ledger(tmp_path / "ledger"), store=tmp_path, trading=trading, log=lambda m: None), clock
+
+
+def test_night_writes_the_ledger_before_the_next_open_and_never_after(tmp_path):
+    cal = sessions_between("2026-12-07", 3)
+    (tmp_path / "a").mkdir()
+    d, _ = _deps(tmp_path / "a", ts("2026-12-08 02:00"))
+    ok, msg, _ = run_night(d, cal)
+    assert ok and "trading is off" in msg and d.ledger.has("2026-12-07")
+    line = d.ledger.lines()[0]
+    assert pd.Timestamp(line["written_at"]) < first_open_utc("2026-12-08")
+    # started after the next open (a late trigger): no ledger for that session, and no broker call
+    (tmp_path / "b").mkdir()
+    d, _ = _deps(tmp_path / "b", ts("2026-12-08 15:00"))
+    ok, msg, extra = run_night(d, cal)
+    assert ok and "missed" in msg and extra["missed"] == "2026-12-07" and not d.ledger.has("2026-12-07")
+
+
+def test_trading_is_on_only_for_the_exact_value_on():
+    assert trading_enabled("on")
+    for v in (None, "", "off", "ON", "On", " on", "on ", "true", "1", "yes"):
+        assert not trading_enabled(v), v
+    assert Deps(broker=None, now=None, predict=None, target=None, ledger=None, store=None).trading is False

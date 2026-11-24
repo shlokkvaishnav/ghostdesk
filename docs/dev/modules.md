@@ -245,7 +245,9 @@ A constant window has variance exactly 0.
 | `LedgerError` | A second write for a session. |
 | `sides(scores, q=0.1)` | +1 top decile, -1 bottom decile, 0. |
 | `Ledger(root)` | `.append(session, made_at, preds)` (once per session, atomic, plus a hash-chain line), `.has`, `.path`, `.read(session)`, `.lines()`, `.verify()` (files match the chain), `.repair()` (adds the line of a file written just before a crash). |
-| `score(rows, opens, half_spread, sectors, fixed_bps=2)` | Realized open(t+1)→open(t+2) return, residual, cost, pnl, profitable (owner's rule: the pick made money after costs), abs_error. |
+| `first_open_utc(day)` | 09:30 New York time of that day in UTC: the earliest moment its open can exist (D38). |
+| `score(rows, opens, half_spread, sectors, fixed_bps=2)` | Realized open(t+1)→open(t+2) return, residual, cost, pnl, profitable (owner's rule: the pick made money after costs), abs_error. A row whose `made_at` is not before `first_open_utc` of t+1 is left out (D38). |
+| `refused(rows, opens)` | The rows `score` leaves out: made at or after the first open they would be scored on. |
 | `model_summary(scored)` | Per model: sessions, share of profitable picks, cumulative decile-book P&L, mean rank IC, mean absolute error. |
 
 ## ghostdesk/live/evaluate.py — forward scoring of the ledger (core, D37)
@@ -280,13 +282,24 @@ A constant window has variance exactly 0.
 | Name | Contract |
 |---|---|
 | `NY`, `OPG_OPEN`, `OPG_CLOSE` | Alpaca's OPG window: 19:00 to 09:28 New York time. |
+| `trading_enabled(value)` | The kill switch: orders only when `TRADING` is exactly `"on"`; unset, empty or anything else is off (D38). |
 | `NightConfig` | `min_frac=0.2`, `margin_min=3`. |
 | `Decision` | `session, predict, trade, ok, reason`. |
-| `Deps` | `broker, now, predict, target, ledger, store, trading, log`. |
+| `Deps` | `broker, now, predict, target, ledger, store, trading=False, log`. |
 | `last_closed(sessions, now)`, `window(sessions, s, cfg)` | The last closed session; its OPG window in UTC. |
 | `state_path`, `read_state`, `is_done` | `night_<YYYYMMDD>.json`; done = `complete`. |
 | `decide(sessions, now, done, cfg)` | Ledger after the close; orders only inside the window; a missed window is an error. |
-| `run_night(deps, sessions, cfg)` | Ledger first, kill switch, plan from positions + this session's open orders, one OPG order per (session, symbol), flips closed tonight and opened next night, record with `complete` and `unreached`. |
+| `run_night(deps, sessions, cfg)` | Ledger first (never once the next open has passed: the session is recorded as `missed`, D38), kill switch, plan from positions + this session's open orders, one OPG order per (session, symbol), flips closed tonight and opened next night, record with `complete` and `unreached`. |
+
+## ghostdesk/live/model_release.py — the published frozen models (core, D38)
+| Name | Contract |
+|---|---|
+| `RELEASE_TAG`, `MANIFEST_VERSION`, `FILES` | `models-v1`; manifest version 1; the four release files (`lightgbm.txt`, `ridge.npy`, `sectors.json`, `meta.json`). |
+| `ModelReleaseError` | A release file is missing, has another size or SHA-256, or the manifest does not match the code. |
+| `sha256(path)` | SHA-256 of a file, read in 1 MB blocks. |
+| `verify(root, manifest, live_models)` | Checks every manifest file under `root` and that the manifest's nightly models are the code's; returns file -> SHA-256 or raises with every problem found. |
+| `load_manifest(path)` | Reads `docs/results/MODEL_MANIFEST.json`; a read or parse error is a `ModelReleaseError`. |
+| `build_manifest(root, meta, versions, extra_models)` | The manifest for a model folder (files, models, training, features, ensemble weights, package versions). |
 
 ## ghostdesk/live/predict.py — frozen models and the ensemble (core, D30)
 | Name | Contract |

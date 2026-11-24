@@ -1,1 +1,2 @@
-"""Live paper trading (Step 5): broker client, live signal, portfolio and VWAP orders, site data."""
+"""Live loop: paper broker client, nightly predictions into the ledger, frozen-model release check, forward scoring
+and site data. Order execution is disabled (D38)."""

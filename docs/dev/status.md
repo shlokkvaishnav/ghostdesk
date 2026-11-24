@@ -1,7 +1,9 @@
 # Status and next work
 
-Updated 2026-11-24. The project is being turned into a quant research platform (decision D26) on the branch
-`pivot/research-platform`. The live monthly book on `main` is unchanged until the owner switches over.
+Updated 2026-11-24. The project is a quant research platform (decision D26). The switch-over is done (D38): the
+monthly paper desk is archived in `docs/archive/monthly-desk-2026-11/` and closed, the paper account holds nothing,
+and order execution is disabled. The nightly job (`nightly.yml`) writes predictions to the ledger before each open and
+scores them forward; no order is placed.
 
 ## Done
 | Step | Result | Evidence |
@@ -20,18 +22,20 @@ Updated 2026-11-24. The project is being turned into a quant research platform (
 | 3. Foundation models, zero-shot (Kaggle GPU, 2021-2022 is before every cutoff) | Chronos-2 IC -0.0008 (t -0.21), TimesFM-2.5 IC -0.0015 (t -0.49), 247,919 forecasts each; both lose after costs. Kronos-small failed with CUDA out of memory (batch of about 500 series x 3 samples); not rerun (GPU on hold) | `validation.json`, `data/kaggle/out/foundation/meta.json` |
 | 3. Registry | LightGBM walk-forward rerun bit-identical (`--verify`, run key `595a1d9332fe60c9`) | `docs/results/validation.json` (`verify`) |
 | 4. Pre-registration | draft committed (`Status: draft`, not stamped); the lock stays closed | `docs/preregistration-platform.md` |
-| 5. Nightly loop | ledger, OPG orders, frozen models, live job; fault injection: 500 scenarios, 0 violations | `data/results/fault_injection.json` |
+| 5. Nightly loop | ledger, frozen models, nightly job; the order path is kept in the code but disabled (D38); fault injection: 500 scenarios, 0 violations | `data/results/fault_injection.json` |
 | 5. Dry night on real data | 2026-11-23: 500 members, 4 models, 1,996 predictions, optimized book of 143 stocks (gross 2.0, net 0); design 2.4 s, optimizer 0.6 s | local dry run, 2026-11-24 |
-| 6b. Site | new page: account vs SPY, tonight's calls, model leaderboard from the ledger, health; rebuilt by each live run, no commit | `web/` |
+| 6b. Site | new page: forward-scored ledger, tonight's calls, model leaderboard, health; no account curve (nothing is traded); rebuilt by each nightly run, no commit | `web/` |
 | 6a. Trigger | Cloudflare Worker code and setup guide (owner deploys) | `worker/`, [trigger-setup.md](trigger-setup.md) |
 
 | 7. Forward evaluation | scoring of the ledger (rank IC, hit rate, error, zero-signal and reversal baselines), book tracking (return, Sharpe, drawdown, turnover, Corwin-Schultz cost), validation-versus-forward table and page section; runs on an empty ledger ("0 days of forward data"); no forward result exists yet | `scripts/live_eval.py`, `tests/test_evaluate.py`, D37 |
+| 8. Switch-over (D38) | monthly desk archived (1,367 orders, 1,855 fills) and closed (0 positions, equity $100,582.38); `live.yml` replaced by `nightly.yml` with `TRADING` fixed off; models published as the pinned release `models-v1` with `MODEL_MANIFEST.json`; timing guard; model and pipeline errors fail the run | `docs/archive/monthly-desk-2026-11/`, `docs/results/MODEL_MANIFEST.json`, `tests/test_workflows.py` |
 
 ## Next
 3. Kaggle: Transformer and foundation-model kernels pushed 2026-11-24, still queued; GPU on hold for another
    project (owner's decision). Their scores enter `run_validation.py` from `data/kaggle/out/`.
 4. Owner: approve the pre-registration; then set it final, stamp it, commit the proof, run the test once.
-5. Owner: TRADING=off, flatten the monthly book, publish the frozen models, merge, deploy the Worker, TRADING=on.
+5. Owner: deploy the Worker ([trigger-setup.md](trigger-setup.md)); until then the GitHub schedule starts the night.
+   Execution stays off until the checklist in the runbook ("Before execution is turned on") is done.
 6. Kaggle scores (when the GPU is free) into `run_validation.py`, then the ensemble rule again.
 
 ## Known open items

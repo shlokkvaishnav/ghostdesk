@@ -16,8 +16,9 @@ Each box is a script in `scripts/`; each arrow is a data file in `data/` (gitign
  store ─▶ research/dataset.py (panel, label) ─▶ features/ (158 factors) ─▶ research/models.py
        ─▶ research/backtest.py + optimizer.py ─▶ research/registry.py ─▶ data/results/*.json
  Kaggle (kaggle/): Transformer, foundation models ─▶ data/kaggle/out/ ─▶ the same backtest
- live_desk.py night (GitHub Actions, started by the Worker): members ─▶ data/live/store ─▶ frozen models
-       ─▶ ledger ─▶ ensemble ─▶ optimizer ─▶ OPG orders ─▶ night record ─▶ scores ─▶ site-data/live.json
+ live_desk.py night (nightly.yml): release models-v1 (checked against MODEL_MANIFEST.json) ─▶ members ─▶ data/live/store
+       ─▶ ledger ─▶ ensemble ─▶ optimizer ─▶ target book (orders disabled, D38) ─▶ night record ─▶ scores
+       ─▶ forward_eval.json ─▶ site-data/live.json
 ```
 
 ## Layers (`src/ghostdesk/`)

@@ -6,14 +6,17 @@ exists.
 
 ## 1. The project in short
 Ghostdesk is a quant research platform for next-day cross-sectional prediction on the survivorship-free S&P 500,
-with a nightly paper-trading loop on Alpaca (decision D26). Parts:
+with a nightly prediction ledger that is scored forward (decision D26). Order execution is disabled (D38): the paper
+account on Alpaca is flat and the nightly workflow fixes `TRADING` to `off`. Parts:
 1. **Data** — the point-in-time S&P 500 (`data/sp500_universe.py`) and a point-in-time price store with as-of reads
    (`data/store.py`).
 2. **Features** — a small expression language compiled to vectorized numpy, with a content-hashed cache.
 3. **Models and backtests** — one model interface, a walk-forward backtester with costs, a portfolio optimizer and
    an experiment registry (`research/`).
-4. **Live** — each night after the close every model predicts every member into an append-only ledger, and the
-   paper account trades the pre-registered ensemble with market-on-open orders.
+4. **Live** — each night after the close every model (frozen, from the release `models-v1`, checked against
+   `docs/results/MODEL_MANIFEST.json`) predicts every member into an append-only ledger before the next open, and the
+   ledger is scored forward (`forward_eval.json`). The market-on-open order code exists but is not run; turning it on
+   is a separate, reviewed change (runbook, "Before execution is turned on").
 
 ## 2. Where to find what
 | Need | Document |
@@ -40,10 +43,12 @@ with a nightly paper-trading loop on Alpaca (decision D26). Parts:
 5. **No raw data in git.** `data/` is gitignored. Publish only statistics and charts.
 6. **SEC fair access.** At most 8 requests per second, with the declared User-Agent. Use `EdgarClient`.
 7. **No long jobs on the owner's Mac.** A job of more than about 10 minutes runs on GitHub Actions or Kaggle.
-8. **Silent automation.** Scheduled or long workflows must not fail visibly (no notification emails): steps use
-   `continue-on-error`, and health is written to a file or the site.
+8. **Quiet automation.** A successful scheduled run sends nothing. Site steps use `continue-on-error`; a failure
+   of the night itself (models missing or changed, no ledger, no evaluation, state not saved) fails the run (D38).
 9. **Commits** use the owner's GitHub noreply address and **never** a `Co-Authored-By` line.
 10. **Writing.** README, repo description and public docs use plain, normal English.
+11. **No orders.** Never set `TRADING=on`, enable the old `live` workflow, or add an order step without the owner's
+   reviewed change (D38).
 
 ## 4. Commands
 ```bash

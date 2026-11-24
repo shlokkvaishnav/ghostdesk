@@ -1,22 +1,26 @@
-"""The live job (decision D30). Each mode writes its result to data/live/health.json and never exits with an error
-code (silent automation: the site shows the health).
+"""The live job (decisions D30, D38). Each mode writes its result to data/live/health.json. `site` and `flatten` never
+exit with an error code; `night` exits with code 1 when the models fail their check or the run fails (D38), so the
+workflow run fails and the failure is seen. A successful run prints only its log.
 
   night    after each session: today's members (Wikipedia), new bars into the live price store, every model's
            prediction for every member into the append-only ledger, then (inside Alpaca's market-on-open window
-           and with TRADING not "off") the ensemble's optimized book as OPG orders (`live.nightly.run_night`).
+           and only with TRADING exactly "on") the ensemble's optimized book as OPG orders (`live.nightly.run_night`).
+           The models are the release `models-v1`, checked against docs/results/MODEL_MANIFEST.json first.
            Last, every ledger prediction whose two next opens are known is scored.
   flatten  close every position and cancel open orders (market orders). Set TRADING=off first to keep it closed.
   site     data for the web page: site-data/live.json (account, equity against SPY, tonight's predictions, the
            model leaderboard from the ledger, positions, health). Only what the page shows; no raw prices.
 
 Usage: python -u scripts/live_desk.py night|flatten|site
-Environment: ALPACA_API_KEY, ALPACA_SECRET_KEY; TRADING ("off" = kill switch: predictions only).
+Environment: ALPACA_API_KEY, ALPACA_SECRET_KEY; TRADING (orders only when exactly "on"; anything else: predictions
+only). GHOSTDESK_MODELS: the folder with the release files (default data/live/models).
 """
 import argparse
 import json
 import os
 import time
 import traceback
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -27,10 +31,12 @@ from ghostdesk.data.store import PriceStore, add_symbols, ingest_daily
 from ghostdesk.live.alpaca_broker import Broker
 from ghostdesk.live.compare import load_validation
 from ghostdesk.live.forward import build_report, read_books
-from ghostdesk.live.ledger import Ledger, model_summary, score
+from ghostdesk.live.ledger import Ledger, model_summary, refused, score
 from ghostdesk.live.members import WIKI_CURRENT, current_members, one_class_per_company
-from ghostdesk.live.nightly import Deps, last_closed, run_night
+from ghostdesk.live.model_release import load_manifest, verify
+from ghostdesk.live.nightly import Deps, last_closed, run_night, trading_enabled
 from ghostdesk.live.predict import (
+    LIVE_MODELS,
     ensemble_score,
     load_models,
     night_design,
@@ -43,6 +49,8 @@ from ghostdesk.research.backtest import half_spread
 LIVE = DATA_DIR / "live"
 SITE_DATA = REPO_ROOT / "site-data"
 VALIDATION = REPO_ROOT / "docs" / "results" / "validation.json"
+MANIFEST = REPO_ROOT / "docs" / "results" / "MODEL_MANIFEST.json"
+MODELS = Path(os.environ.get("GHOSTDESK_MODELS") or LIVE / "models")
 FIRST_DAY_BACK = 600  # the live store keeps about 600 calendar days
 
 ap = argparse.ArgumentParser()
@@ -95,7 +103,15 @@ def fetcher():
 
 
 # ---------------------------------------------------------------------------------------------------- night
+class NightFailed(RuntimeError):
+    """The night run did not write its ledger or its evaluation (D38: the workflow run fails)."""
+
+
 def night() -> None:
+    # The models first: a missing, changed or incompatible file stops the night before any data is fetched (D38).
+    hashes = verify(MODELS, load_manifest(MANIFEST), LIVE_MODELS)
+    models = load_models(MODELS)
+    print(f"models: {len(hashes)} files match MODEL_MANIFEST.json; loaded {', '.join(models)}", flush=True)
     broker = Broker()
     cal = calendar(broker)
     t = now()
@@ -114,10 +130,8 @@ def night() -> None:
     added = add_symbols(store, fetch, syms, first, end.isoformat().replace("+00:00", "Z"), t)
     print(f"store: {ing}; {added} new symbols", flush=True)
 
-    models_dir = LIVE / "models"
-    models = load_models(models_dir)
-    meta = json.loads((models_dir / "meta.json").read_text())
-    sectors = json.loads((models_dir / "sectors.json").read_text())
+    meta = json.loads((MODELS / "meta.json").read_text())
+    sectors = json.loads((MODELS / "sectors.json").read_text())
     adj = store.read("adj", start=session - pd.Timedelta(days=100), end=session)
     dv = (adj.assign(dv=adj["c"] * adj["v"]).sort_values("day").groupby("symbol")["dv"]
           .apply(lambda x: x.tail(63).mean()))
@@ -142,19 +156,25 @@ def night() -> None:
         return optimizer_target(get_night(sess), ensemble_score(rows, meta["ensemble_weights"]), pd.Series(held))
 
     deps = Deps(broker=broker, now=now, predict=predict, target=target, ledger=Ledger(LIVE / "ledger"),
-                store=LIVE, trading=os.environ.get("TRADING", "on") != "off", log=lambda x: print(x, flush=True))
+                store=LIVE, trading=trading_enabled(os.environ.get("TRADING")), log=lambda x: print(x, flush=True))
     ok, message, extra = run_night(deps, cal)
     health("night", ok, message, **extra, store_rows=ing.get("new_rows"))
-    score_ledger(store, sectors)
+    scored_ok = score_ledger(store, sectors)
+    if not ok:
+        raise NightFailed(message)
+    if not scored_ok:
+        raise NightFailed("the ledger check or the forward evaluation failed (see health.json)")
 
 
-def score_ledger(store: PriceStore, sectors: dict) -> None:
+def score_ledger(store: PriceStore, sectors: dict) -> bool:
+    """Score the ledger and write forward_eval.json. Returns False when the chain check or the report fails."""
     led = Ledger(LIVE / "ledger")
     rows = led.read()
     if rows.empty:
         report = build_report(rows, {}, pd.DataFrame(), None, load_validation(VALIDATION))
         (LIVE / "forward_eval.json").write_text(json.dumps(report, separators=(",", ":"), allow_nan=False))
-        return
+        health("forward", True, report["compare"]["headline"])
+        return True
     raw = store.read("raw", start=rows["session"].min() - pd.Timedelta(days=40))
     opens = raw.pivot(index="day", columns="symbol", values="o").sort_index()
     hi = raw.pivot(index="day", columns="symbol", values="h").reindex_like(opens)
@@ -162,18 +182,24 @@ def score_ledger(store: PriceStore, sectors: dict) -> None:
     cl = raw.pivot(index="day", columns="symbol", values="c").reindex_like(opens)
     hs = pd.DataFrame(half_spread(hi.to_numpy(), lo.to_numpy(), cl.to_numpy()), index=opens.index,
                       columns=opens.columns)
+    late = refused(rows, opens)
+    if len(late):
+        print(f"score: refused {len(late)} predictions made at or after their first realized open", flush=True)
     sc = score(rows, opens, hs, pd.Series(sectors))
     sc.to_parquet(LIVE / "ledger_scores.parquet", index=False)
     summ = model_summary(sc) if len(sc) else pd.DataFrame()
     (LIVE / "ledger_summary.json").write_text(summ.to_json(orient="records"))
     ok, why = led.verify()
     health("score", ok, f"{sc['session'].nunique() if len(sc) else 0} sessions scored; ledger {why}")
-    try:  # the forward evaluation (D37) must never stop the night
+    try:  # the forward evaluation (D37) runs even when the chain check failed; both results are recorded
         report = build_report(rows, read_books(LIVE), raw, sectors, load_validation(VALIDATION))
         (LIVE / "forward_eval.json").write_text(json.dumps(report, separators=(",", ":"), allow_nan=False))
         health("forward", True, report["compare"]["headline"])
     except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
         health("forward", False, f"{type(e).__name__}: {e}")
+        return False
+    return ok
 
 
 # ---------------------------------------------------------------------------------------------------- flatten
@@ -196,7 +222,7 @@ def site() -> None:
     led = Ledger(LIVE / "ledger")
     rows = led.read()
     latest = rows[rows["session"] == rows["session"].max()] if len(rows) else rows
-    meta_p = LIVE / "models" / "meta.json"
+    meta_p = MODELS / "meta.json"
     weights = json.loads(meta_p.read_text())["ensemble_weights"] if meta_p.exists() else {}
     ens = ensemble_score(latest, weights).sort_values() if len(latest) and weights else pd.Series(dtype=float)
     summ_p = LIVE / "ledger_summary.json"
@@ -241,9 +267,14 @@ def _json(x):
 
 if __name__ == "__main__":
     t0 = time.time()
+    code = 0
     try:
         {"night": night, "flatten": flatten, "site": site}[args.mode]()
-    except Exception as e:  # noqa: BLE001 - silent automation: record, do not fail the workflow
+    except Exception as e:  # noqa: BLE001 - recorded in health.json; only the night fails the run (D38)
         traceback.print_exc()
         health(args.mode, False, f"{type(e).__name__}: {e}")
+        if args.mode == "night":
+            print(f"::error::night failed: {type(e).__name__}: {e}", flush=True)
+            code = 1
     print(f"{args.mode}: {time.time() - t0:.0f} s", flush=True)
+    raise SystemExit(code)

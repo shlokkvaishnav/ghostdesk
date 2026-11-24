@@ -72,20 +72,54 @@ PYTHONPATH=src .venv/bin/python -u scripts/research/export_kaggle_panel.py --upl
   against the decile book on 2021-2022; `--verify` reruns LightGBM for the bit-identical check. Needs a clean
   commit (the registry refuses a dirty tree). Output `data/results/validation.json`.
 
-## 8. Live job — `scripts/live_desk.py` (GitHub Actions `live`, D30)
+## 8. Nightly job — `scripts/live_desk.py` (GitHub Actions `nightly.yml`, D30, D38)
+Order execution is disabled. The workflow sets `TRADING` to `off` itself (it does not read the repository
+variable), and it has no flatten or order mode. The old `live.yml` is removed.
+
 | Mode | What it does |
 |---|---|
-| `night` | members, new bars into `data/live/store`, predictions into the ledger, OPG orders inside the window (unless `TRADING=off`), ledger scoring |
-| `flatten` | close every position and cancel open orders |
-| `site` | `site-data/live.json` for the page |
+| `night` | download and check the pinned models (`models-v1` against `docs/results/MODEL_MANIFEST.json`), members, new bars into `data/live/store`, predictions into the ledger, ledger scoring, `forward_eval.json`; no order |
+| `site` | `site-data/live.json` and the whole Pages site |
 
-Before the first night (owner):
-1. `gh variable set TRADING --body off`, then `gh workflow run live.yml -f mode=flatten` (closes the monthly book).
-2. Fit and publish the frozen models: `PYTHONPATH=src .venv/bin/python -u scripts/research/fit_live_models.py`,
-   then upload `data/live/models/` inside the encrypted state archive:
-   `tar -C data/live -c models | openssl enc -aes-256-cbc -salt -pbkdf2 -md sha256 -iter 100000 -pass env:STATE_KEY -out live-state.tar.enc && gh release upload live-state live-state.tar.enc --clobber`.
-3. Merge the branch, set up the Worker ([trigger-setup.md](trigger-setup.md)), watch one night with
-   `TRADING=off` (ledger only), then `gh variable set TRADING --body on`.
+- Triggers: the Worker at 01:30 and 11:00 UTC Tuesday to Saturday ([trigger-setup.md](trigger-setup.md)); the
+  GitHub schedule at 02:00 and 11:30 UTC as a backup; a push to `docs/**`, `web/**`, `mkdocs.yml` or the workflow
+  (site only); manual: `gh workflow run nightly.yml -f mode=night` (or `-f mode=site`).
+- A night that already has its ledger file does nothing new. Predictions for a session are written only before its
+  open (the timing guard); a late run records the session as `missed`.
+- State: the ledger and the live store are kept in the Actions cache and, encrypted with `STATE_KEY`, in the release
+  `nightly-state` (D25). The old `live-state` release is not read.
+- Failures (D38): a missing, changed or incompatible model, a failed night, a missing ledger or evaluation, or a lost
+  state upload fails the run, and GitHub sends its normal failure notice. A good run is quiet. The site steps do not
+  fail the run.
+
+### `scripts/ops/publish_models.py` — the frozen models (once per model version)
+```bash
+PYTHONPATH=src .venv/bin/python -u scripts/research/fit_live_models.py   # writes data/live/models/
+PYTHONPATH=src .venv/bin/python -u scripts/ops/publish_models.py         # writes docs/results/MODEL_MANIFEST.json
+gh release create models-v1 data/live/models/{lightgbm.txt,ridge.npy,sectors.json,meta.json} \
+    docs/results/MODEL_MANIFEST.json --title "Frozen models v1"
+```
+- The manifest holds the SHA-256 and size of each file, the training window and the package versions; the script
+  checks the files against it and that the models load. The workflow pins the tag in `MODELS_TAG`; a new model
+  version is a new tag (`models-v2`), a new manifest and a reviewed change to the workflow, never a replaced asset.
+
+### `scripts/ops/archive_account.py` — archive of the monthly paper desk (done 2026-11-24)
+```bash
+PYTHONPATH=src .venv/bin/python -u scripts/ops/archive_account.py [--out DIR] [--final]
+```
+- Read-only (GET requests only). Writes positions, open orders, account values, every order, every fill and the
+  portfolio history to `docs/archive/monthly-desk-2026-11/`, without account number, account id or keys. `--final`
+  writes only `final_state.json` after the account is closed.
+
+### Before execution is turned on
+Execution stays off until every item is done, in a reviewed change of its own:
+1. A forward sample in `forward_eval.json` that the owner judges long enough (the page shows the number of days),
+   with no session written after its open.
+2. The book still earns more than its costs in that forward sample; at a fixed 5 bps it lost in validation.
+3. An order mode (and a flatten mode) added back to the workflow, with `TRADING` read as exactly `on` and a test for
+   it; position and order limits in the code, with tests.
+4. A decision record that says why, and an updated page, README and this runbook.
+5. One night run by hand with the new mode, then watched.
 
 ## 8a. Forward evaluation — `scripts/live_eval.py` (D37)
 - `PYTHONPATH=src .venv/bin/python scripts/live_eval.py [--live data/live] [--validation docs/results/validation.json]`
@@ -115,4 +149,4 @@ make check     # ruff + pytest + mkdocs build --strict
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | push, pull request | ruff + pytest + docs |
-| `live.yml` | Worker dispatch (main), schedule (backup), push to `docs/**` or `web/**`, manual | nightly run, flatten, the whole Pages site |
+| `nightly.yml` | Worker dispatch (main), schedule 02:00 and 11:30 UTC (backup), push to `docs/**`, `web/**`, `mkdocs.yml` or the workflow, manual (`night` or `site`) | nightly predictions and scoring (no orders), the whole Pages site |

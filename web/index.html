@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ghostdesk — next-day stock predictions, traded every night</title>
-<meta name="description" content="A quant research platform for next-day S&P 500 prediction. Every night every model predicts every stock into a public ledger, and a paper account trades the ensemble at the next open.">
+<title>ghostdesk — next-day stock predictions, scored forward</title>
+<meta name="description" content="A quant research platform for next-day S&P 500 prediction. Every night every model predicts every stock into an append-only ledger before the next open, and the ledger is scored forward. Order execution is off.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238c2346'/%3E%3Cpath d='M9 21V12a7 7 0 0 1 14 0v9l-2.3-1.6L18.4 21 16 19.4 13.6 21l-2.3-1.6z' fill='white'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/style.css">
 <style>
@@ -45,20 +45,15 @@
   </nav>
 
   <header class="hero">
-    <div class="kicker">Nightly predictions · S&amp;P 500 · paper money</div>
+    <div class="kicker">Nightly predictions · S&amp;P 500 · scored forward</div>
     <h1>Every model, every stock, every night</h1>
-    <p class="sub">After each close the models predict tomorrow for all 500 stocks. The predictions go into a public ledger first; then the paper account trades the ensemble at the next open.</p>
+    <p class="sub">After each close the frozen models predict the next day for all 500 stocks. The predictions go into an append-only ledger before the next open, and each one is scored once its two next opens exist. No orders are sent: order execution is off.</p>
     <div class="stats" id="stats"></div>
   </header>
 
   <section>
-    <h2>The account against the market</h2>
-    <div class="panel"><div class="legend"><span><i style="background:var(--accent)"></i>ghostdesk</span><span><i style="background:var(--muted)"></i>SPY</span></div><div id="curve"></div></div>
-  </section>
-
-  <section>
     <h2>Tonight's calls</h2>
-    <p class="cap" id="tonight-cap">The ensemble's strongest calls for the next open.</p>
+    <p class="cap" id="tonight-cap">The ensemble's strongest calls for the next open. They are recorded, not traded.</p>
     <div class="grid g2">
       <div class="panel"><div class="legend"><span><i style="background:var(--ok)"></i>Expected to beat its sector</span></div><ul class="picks" id="top"></ul></div>
       <div class="panel"><div class="legend"><span><i style="background:var(--accent)"></i>Expected to trail its sector</span></div><ul class="picks" id="bottom"></ul></div>
@@ -67,7 +62,7 @@
 
   <section>
     <h2>Model leaderboard</h2>
-    <p class="cap">From the ledger: a pick counts as right when its trade made money after costs. Never judge on one day.</p>
+    <p class="cap">From the ledger, as hypothetical trades: a pick counts as right when its trade would have made money after costs. Never judge on one day.</p>
     <div class="panel scroll" id="board"></div>
   </section>
 
@@ -78,7 +73,7 @@
   </section>
 
   <footer>
-    <p>Paper trading: Alpaca simulates the fills. Not investment advice. Prices from Alpaca.</p>
+    <p>Order execution is off; no orders are sent. Not investment advice. Prices from Alpaca.</p>
     <div class="health" id="health"></div>
   </footer>
 </div>

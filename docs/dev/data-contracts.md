@@ -92,15 +92,28 @@ size, reuse counts, differing factors; `validation.json`: per-model validation m
 bit-identical check; `fault_injection.json`: scenarios, runs, crashes, violations). Copies of `bench_features.json` and
 `validation.json` are committed in `docs/results/` after each run.
 
-### Live state: data/live/ (Actions cache `live-state-*`, encrypted copy in the release `live-state`)
+### Live state: data/live/ (Actions cache `nightly-state-*`, encrypted copy in the release `nightly-state`)
 Producer: `scripts/live_desk.py`. `store/` (a `data.store` of about 600 days for today's members), `ledger/`
 (`<YYYYMMDD>.parquet` with `live.ledger.COLUMNS`, `chain.jsonl`), `night_<YYYYMMDD>.json` (runs, ledger hash, target,
-plan, orders, rejected, unreached, complete), `ledger_scores.parquet` and `ledger_summary.json` (derived),
-`members.parquet` (`symbol, cik, name, sector`), `models/` (frozen models, ensemble weights, sectors),
+plan, orders, rejected, unreached, complete; `missed` when the next open passed before the ledger was written, D38),
+`ledger_scores.parquet` and `ledger_summary.json` (derived; predictions made at or after their first realized open are
+left out, D38), `members.parquet` (`symbol, cik, name, sector`),
 `forward_eval.json` (derived, strict JSON: `forward` = per-model summary with `forward_days`, `daily` = per
 session and model IC, hit rate, P&L, `book` = days, cumulative net return, Sharpe, max drawdown, mean turnover,
 total cost, curve; `compare` = labelled validation-versus-forward rows with sample sizes; D37),
 `health.json`. Output for the page: `site-data/live.json` (gitignored).
+The old monthly desk's state stays in the release `live-state` (not read any more); its account record is in
+`docs/archive/monthly-desk-2026-11/` (D38).
+
+### Frozen models: the release `models-v1` and docs/results/MODEL_MANIFEST.json (D38)
+Producer: `scripts/research/fit_live_models.py` (files in `data/live/models/`) and `scripts/ops/publish_models.py`
+(the manifest). Release files: `lightgbm.txt` (LightGBM text model), `ridge.npy` (float64 weights), `sectors.json`
+(symbol -> sector group), `meta.json` (features, ensemble weights, fit dates, code commit, data hash); the manifest is
+attached too. The manifest (committed) lists each file's bytes and SHA-256, every validated model (nightly or not,
+published or not, with the reason), the train and validation splits, the feature list, the ensemble weights and the
+package versions. Invariant: the nightly job downloads only the pinned tag into `data/models-v1/` and runs
+`live.model_release.verify` before any data is fetched; any difference fails the run. The files never change; new
+models get a new tag and a new manifest.
 
 ### Caches and inputs
 | Path | Content |

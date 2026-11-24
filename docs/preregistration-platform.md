@@ -47,7 +47,9 @@ validation IC (2021-2022, `data/results/validation.json`). With the four local m
 | lightgbm | 0.01084 | 0.320 |
 
 The Transformer now has validation scores (Kaggle, 2026-11-24): IC 0.00817 (t 1.35), registry run `52c2ee1a28506fc7`.
-It does not run every night yet, so it is not in the table. If the Transformer or a foundation model has validation scores and can run every night before this file is final,
+It does not run every night yet, so it is not in the table. Zero-shot validation (2021-2022, before every
+cutoff): Chronos-2 IC -0.00081, TimesFM-2.5 IC -0.00154 (weight 0 by the rule); Kronos-small has no validation
+scores yet (out of GPU memory on Kaggle). If the Transformer or a foundation model has validation scores and can run every night before this file is final,
 it joins by the same rule and the table is recomputed. **Open for the owner:** whether to wait for the Kaggle
 results (GPU on hold) before finalizing.
 

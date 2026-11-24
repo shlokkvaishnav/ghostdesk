@@ -104,3 +104,20 @@ def test_cross_sectional_rank_and_comparisons_keep_missing():
     r = FeatureEngine(f).compute({"r": "Rank($close)", "g": "$close>Ref($close,1)"})
     assert np.isnan(r["r"][3, 2]) and np.nanmax(r["r"][3]) == 1.0
     assert np.isnan(r["g"][0]).all() and np.isnan(r["g"][3, 2]) and np.isnan(r["g"][4, 2])
+
+
+def test_flat_price_windows_give_exact_zero_regression_factors():
+    """A real stock (ADT) has a price that stays at one value for weeks. Slope and residual are then exactly 0, as
+    are the standard deviations; the running sums used to leave a residue of about 1e-12 in slope and residual, and
+    plain pandas leaves about 1e-8 in the standard deviation."""
+    f = market(t=120, n=2, holes=False)
+    for m in f.values():
+        m[50:100, 0] = m[50, 0]
+    f["close"][50:100, 0] = 31.96
+    exprs = alpha158()
+    got = FeatureEngine(f).compute(exprs)
+    for d in (5, 10, 20, 30):
+        rows = slice(50 + d, 100)  # windows that lie fully inside the flat stretch
+        for name in (f"BETA{d}", f"RESI{d}", f"STD{d}"):
+            assert (got[name][rows, 0] == 0).all(), name
+        assert np.isnan(got[f"RSQR{d}"][rows, 0]).all()

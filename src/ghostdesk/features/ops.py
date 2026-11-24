@@ -93,8 +93,12 @@ def _regress(x, d: int):
     slope = sxy / sxx
     syy = sy2 - s * s / d
     fit_last = s / d + slope * (d - st / d)
+    flat = _flat(x, d)
     with np.errstate(invalid="ignore", divide="ignore"):
-        r2 = np.where((syy > 0) & ~_flat(x, d), sxy * sxy / (sxx * syy), np.nan)
+        r2 = np.where((syy > 0) & ~flat, sxy * sxy / (sxx * syy), np.nan)
+    # A constant window has slope exactly 0 and a fit equal to the value; the running sums leave a residue (1e-12).
+    slope = np.where(flat, 0.0, slope)
+    fit_last = np.where(flat, x - c, fit_last)
     ok = n == d
     return (np.where(ok, slope, np.nan), np.where(ok, fit_last + c, np.nan), np.where(ok, r2, np.nan))
 

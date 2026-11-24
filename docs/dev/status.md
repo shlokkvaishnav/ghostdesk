@@ -11,9 +11,9 @@ Updated 2026-11-24. The project is being turned into a quant research platform (
 | 1. Deletions | lazy prices, execution study, monthly models, launchd trigger removed | D26 |
 | 1. Price store | seeded from the 2016-2025 load; extended to 2026-11-23 (117,247 raw rows, 35 symbols refetched) | `data/store/ingest_log.json` |
 | 1. Sectors | 709 companies, 25 SIC groups | `sectors.parquet` |
+| 2. Feature engine | 158 Alpha158 factors equal to plain pandas; 1,354 nodes → 357 unique; 1,762 x 635 panel cold 6.8-7.6 s, warm 0.2-0.4 s; 23.5-29.7x faster than pandas on 50 symbols | `data/results/bench_features.json`, `tests/test_features.py` |
 
 ## Next
-2. Expression-language feature engine with a cache, tests and a speed benchmark against plain pandas.
 3. Model zoo, walk-forward backtester, optimizer, experiment registry.
 4. Pre-registration of the locked test (draft first; the owner approves before it is final and stamped).
 5. Nightly live loop, prediction ledger, fault-injection harness.

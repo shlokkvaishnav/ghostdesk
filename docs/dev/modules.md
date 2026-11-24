@@ -132,3 +132,65 @@ Describes the book each day; it does not change the pre-registered portfolio (de
 | `research_end(include_test, path, check)` | `(VAL_END, None)`, or `(TEST_END, commit)` when the lock opens. |
 | `guard(days, include_test, path, check)` | Raises if `days` reach past the research end. |
 
+## ghostdesk/features/expr.py — the expression language (core, D28)
+| Name | Contract |
+|---|---|
+| `FIELDS` | `open, high, low, close, volume, vwap`. |
+| `SIGNATURES` | Function name → (expression arguments, numeric parameters). |
+| `BINARY`, `COMMUTATIVE` | Operator → node name; nodes whose arguments are sorted in the canonical form. |
+| `TOKEN` | The token pattern. |
+| `ExprError` | Syntax error, unknown name, wrong arguments, or a negative `Ref` lag. |
+| `Node` | Frozen `op, args, params`. |
+| `tokenize(text)`, `parse(text)` | Text → tokens → AST. `Rank(x)` is cross-sectional; `Rank(x, d)` is in time. |
+| `canonical(node)` | Unique string of a tree (commutative arguments sorted); memoized. |
+| `subexpressions(node)` | All nodes, children first. |
+| `lookback(node)` | Sessions of history needed before the first value. |
+
+## ghostdesk/features/ops.py — numpy kernels (core)
+Look-back only; a window needs all `d` values. Running sums for sums, means, variances, regressions and
+correlations (each column shifted by a constant first); strided window views for max, min, quantile, rank, arg-max.
+A constant window has variance exactly 0.
+
+| Name | Contract |
+|---|---|
+| `EPS_DDOF` | 1 (sample variance, as pandas). |
+| `ref(x, d)`, `delta(x, d)` | Lag (refuses d < 0); difference. |
+| `tsum`, `mean`, `var`, `std` | Rolling sum, mean, sample variance, standard deviation. |
+| `slope`, `rsquare`, `resi` | Least squares on t = 1..d: slope, R² (NaN for a constant window), last value minus its fit. |
+| `cov`, `corr` | Rolling covariance and correlation (NaN when a side is constant). |
+| `tmax`, `tmin`, `quantile(x, d, q)` | Rolling max, min, linear-interpolated quantile. |
+| `trank` | Percentile rank of the last value in its window (average ties), as pandas `rank(pct=True)`. |
+| `idxmax`, `idxmin` | 1-based position of the window max or min from the oldest row. |
+| `ema(x, d)` | Exponential mean, alpha = 2/(d+1). |
+| `cs_rank`, `cs_zscore` | Cross-sectional percentile rank and z-score per row. |
+
+## ghostdesk/features/engine.py — compile, reuse, cache (core, D28)
+| Name | Contract |
+|---|---|
+| `ENGINE_VERSION` | Part of every cache key. |
+| `data_hash(fields, extra)` | SHA-256 of the input matrices. |
+| `FeatureEngine(fields, cache_dir, data_key)` | `.compute(exprs) -> dict` (name → matrix): unique subexpressions computed once in dependency order and freed after their last use; results cached as `.npy` by SHA-256 of (data key, canonical form, version), written atomically. `.stats`: `factors, nodes, unique, computed, cache_hits, peak_live`. `.key(canon)`. |
+
+## ghostdesk/features/alpha158.py — the 158 factors (core)
+| Name | Contract |
+|---|---|
+| `WINDOWS`, `E` | 5, 10, 20, 30, 60; the 1e-12 guard. |
+| `KBAR`, `PRICE`, `ROLLING` | Qlib Alpha158 definitions (arXiv:2009.11189) in our language. |
+| `alpha158()` | Name → expression for all 158. |
+
+## ghostdesk/features/pandas_reference.py — the pandas baseline (ready)
+| Name | Contract |
+|---|---|
+| `E` | 1e-12. |
+| `alpha158_pandas(df)` | The 158 factors on long rows with `groupby("symbol").rolling` (benchmark baseline and test oracle). |
+
+## ghostdesk/research/dataset.py — panel and label (core, D29)
+| Name | Contract |
+|---|---|
+| `FIELD_MAP` | Engine field → store column. |
+| `Panel` | `days, symbols, fields, member, sector, spy_open, spy_close, raw_open, flag, data_key`. |
+| `load_panel(start, end, asof, store, include_test, warmup_days=400)` | Members of the window with history; refuses test sessions while locked. |
+| `open_to_open(open_)` | Row t: log open(t+1) → open(t+2). |
+| `rolling_beta(ret, mkt, window=252, min_obs=120)` | Beta through row t (1.0 with too little history). |
+| `residual_label(panel)` | Open-to-open return minus beta × SPY, minus the sector mean; NaN off-index, on vendor-error days and for the last two rows. |
+

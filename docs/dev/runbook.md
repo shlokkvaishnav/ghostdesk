@@ -49,6 +49,10 @@ PYTHONPATH=src .venv/bin/python -u scripts/data/update_prices.py            # up
 - SIC code per CIK from the SEC submissions JSON (through the `data/raw` cache: 6 network calls on 2026-11-24),
   grouped by `data.industry.industry_groups`: 709 companies, 25 groups. Output `sectors.parquet`.
 
+## 5. Feature benchmark — `scripts/research/bench_features.py`
+- The 158 factors on 2016 to the validation end (1,762 sessions x 635 symbols): engine cold, engine warm (cache), and
+  engine against `features.pandas_reference` on 50 symbols. Output `data/results/bench_features.json`. About 30 s.
+
 ## 9. Checks before a commit
 ```bash
 make check     # ruff + pytest + mkdocs build --strict

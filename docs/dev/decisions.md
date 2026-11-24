@@ -353,3 +353,21 @@ the decision of an old entry — add a new entry that replaces it.
   pre-registration `docs/preregistration-platform.md` is committed, says `Status: final`, and its OpenTimestamps
   proof is committed. `research.holdout_lock.guard` refuses later sessions until then; a draft never opens it.
 - **Consequence:** sessions after 2026-10 are the forward window (live predictions in the ledger).
+
+### D28 — An own expression language for features (2026-11-24)
+- **Decision:** features are strings in a small Qlib-style language (`Rank(Ref($close,5)/$close)`), parsed to an AST,
+  deduplicated by a canonical form (commutative arguments sorted), and evaluated as one vectorized numpy call per
+  unique node on the whole session x symbol matrix. Intermediate results are freed after their last use; final
+  results are cached as `.npy` files keyed by SHA-256 of (data hash, canonical expression, engine version).
+- **Why:** 158 Alpha158 factors have 1,354 nodes but only 357 unique ones, so reuse alone removes 74% of the work;
+  wide matrices avoid a group-by per operation. `Ref` refuses negative lags, so no factor can read a later session
+  (tested by changing all later data).
+- **Rejected:** pandas per stock (the baseline: about 24-30x slower on the same data); numba (one more compiled
+  dependency for a gain the matrix form already gives); Qlib's own engine (ties the data store to its format).
+- **Semantics:** a window needs all values; comparisons with a missing side are missing. These differ from Qlib's
+  partial windows, on purpose: a factor value then always has the same meaning.
+
+### D29 — The label: next open-to-open residual return (2026-11-24, owner's choice)
+- **Decision:** orders are market-on-open, so a prediction made after the close of day t is scored on the log return
+  from open(t+1) to open(t+2), minus beta x SPY (beta from the 252 sessions through t) and minus the sector mean of
+  those residuals on the day. Features use data through the close of t.

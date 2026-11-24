@@ -86,8 +86,13 @@ Producer: `scripts/data/build_sectors.py`. One row per CIK with prices or in tod
 | `sic` | str | Today's SIC code of the CIK (empty if unknown). |
 | `sector` | str | `data.industry.industry_groups` over all companies: the 2-digit SIC group, or the division for small groups. |
 
+### data/results/*.json
+Measured numbers that the docs quote, one file per script (`bench_features.json`: engine and pandas times, cache
+size, reuse counts, differing factors).
+
 ### Caches and inputs
 | Path | Content |
 |---|---|
 | `data/raw/` | `EdgarClient` cache (SHA-256 of the URL): submissions JSON and the lookup file for the stock list and sectors. |
+| `data/cache/features/` | Feature engine results (`.npy`, SHA-256 key); safe to delete. |
 | `data/sources/` | fja05680 CSV and the two Wikipedia pages, as downloaded (the universe depends on their date). |

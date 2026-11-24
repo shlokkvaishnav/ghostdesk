@@ -1,0 +1,12 @@
+name = "ghostdesk-trigger"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+[vars]
+REPO = "shlokkvaishnav/ghostdesk"
+WORKFLOW = "live.yml"
+REF = "main"
+
+[triggers]
+# UTC. 01:30 Tue-Sat: after each weekday session, inside the OPG window. 11:00 Tue-Sat: second chance before 09:28 ET.
+crons = ["30 1 * * 2-6", "0 11 * * 2-6"]

@@ -99,9 +99,29 @@ function board() {
     `</tbody></table>`;
 }
 
+function forward() {
+  const F = D.forward_eval, host = $("forward");
+  if (!F) { host.innerHTML = `<p class="empty">0 days of forward data. The forward evaluation has not run yet.</p>`; return; }
+  const C = F.compare, n = C.forward_days, B = F.book || {};
+  $("fwd-cap").textContent = `${C.headline}. The 2021-2022 numbers (${C.labels.validation}) were used to choose the models. Only the ${C.labels.forward}, scored on days after the models were frozen, is independent evidence.`;
+  const f = (v, d) => (v == null || Number.isNaN(v) ? "—" : v.toFixed(d));
+  const dash = `<span title="no forward data yet">—</span>`;
+  const rows = (C.rows || []).filter((r) => ["reversal_1d", "reversal_5d", "ridge", "lightgbm"].includes(r.model) || r.forward != null);
+  let html = `<table class="board"><thead><tr><th>Model</th><th>Metric</th><th>${esc(C.labels.validation)}<br><small>sessions</small></th><th>${esc(C.labels.forward)}<br><small>days</small></th></tr></thead><tbody>` +
+    rows.map((r) => `<tr><td>${esc(r.model)}</td><td>${esc(r.metric)}</td><td>${f(r.validation, 4)} <small>(${r.validation_sessions ?? "—"} sessions)</small></td>` +
+      `<td>${r.forward == null ? dash : f(r.forward, 4)} <small>(${r.forward_days} days)</small></td></tr>`).join("") + `</tbody></table>`;
+  if (n === 0) html += `<p class="empty" style="margin-top:12px">0 days of forward data: no prediction has both of its next opens yet, so there is nothing to compare.</p>`;
+  html += `<h3>Optimizer book, forward (${B.days || 0} days)</h3>`;
+  html += B.days ? `<table class="board"><tbody><tr><td>Cumulative net return</td><td>${pct(B.cum_return * 100, 2)}</td></tr>` +
+    `<tr><td>Sharpe (annualized)</td><td>${f(B.sharpe, 2)}</td></tr><tr><td>Max drawdown</td><td>${pct(B.max_drawdown * 100, 2)}</td></tr>` +
+    `<tr><td>Mean daily turnover</td><td>${f(B.turnover_mean, 3)}</td></tr><tr><td>Total transaction cost</td><td>${pct(B.cost_total * 100, 3)}</td></tr></tbody></table>`
+    : `<p class="empty">No matured target book yet.</p>`;
+  host.innerHTML = html;
+}
+
 function health() {
   const h = D.health || {};
-  const names = { night: "Night run", score: "Ledger", site: "Page" };
+  const names = { night: "Night run", score: "Ledger", forward: "Forward test", site: "Page" };
   const bad = Object.values(h).some((x) => x && x.ok === false);
   $("badge").innerHTML = `<span class="dot" style="background:${bad ? "var(--accent)" : "var(--ok)"}"></span>${bad ? "Needs a look" : "All systems normal"}`;
   if (bad) $("badge").classList.add("bad");
@@ -109,7 +129,7 @@ function health() {
     `<span class="badge${h[k].ok ? "" : " bad"}" title="${esc(h[k].message || "")}"><span class="dot" style="background:${h[k].ok ? "var(--ok)" : "var(--accent)"}"></span>${n} · ${new Date(h[k].at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>`).join("");
 }
 
-function draw() { stats(); curve(); picks(); board(); health(); }
+function draw() { stats(); curve(); picks(); board(); forward(); health(); }
 
 fetch("data/live.json", { cache: "no-store" }).then((r) => r.json()).then((d) => { D = d; draw(); })
   .catch(() => { $("stats").innerHTML = `<p class="empty">Live data is not available right now.</p>`; });

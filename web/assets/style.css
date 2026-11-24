@@ -69,3 +69,6 @@ svg text { font-family: var(--sans); }
 footer { margin-top: 2rem; padding: 1.6rem 0 3rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .85rem; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .6rem 2rem; }
 footer p { margin: 0; max-width: 40rem; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+.panel h3 { font-size: 1rem; margin: 18px 0 8px; }
+.board small { color: var(--muted); font-weight: 400; }

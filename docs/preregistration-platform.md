@@ -46,7 +46,8 @@ validation IC (2021-2022, `data/results/validation.json`). With the four local m
 | ridge | 0.00702 | 0.207 |
 | lightgbm | 0.01084 | 0.320 |
 
-If the Transformer or a foundation model has validation scores and can run every night before this file is final,
+The Transformer now has validation scores (Kaggle, 2026-11-24): IC 0.00817 (t 1.35), registry run `52c2ee1a28506fc7`.
+It does not run every night yet, so it is not in the table. If the Transformer or a foundation model has validation scores and can run every night before this file is final,
 it joins by the same rule and the table is recomputed. **Open for the owner:** whether to wait for the Kaggle
 results (GPU on hold) before finalizing.
 
@@ -64,11 +65,12 @@ sessions before and after its pretraining-data cutoff:
 
 | Model | Cutoff used | Source |
 |---|---|---|
-| kronos_small | 2024-06-30 | Kronos paper (arXiv:2508.02739): pretraining data to June 2024, test from July 2024 (to be checked against the paper's text before final) |
-| chronos2 | 2025-10-31 (end of its release month; arXiv:2510.15821, October 2025; exact day to be checked) | no data cutoff stated; the model card lists Chronos and GIFT-Eval datasets and synthetic data |
-| timesfm25 | 2025-09-15 (release) | no overall cutoff stated; listed sources end Nov 2023 (Wikimedia) and 2022 (Trends) |
+| kronos_small | 2024-06-30 | verified in the paper's text (arXiv:2508.02739v1, Appendix D, "Task Implementation Details" > "Forecasting Task Setup"): "The pre-training data for Kronos extends up to June 2024. Consequently, our test period for all tasks begins in July 2024" |
+| chronos2 | 2025-10-17 (arXiv:2510.15821 v1, submitted 17 Oct 2025) | no date cutoff in the paper (full text searched: no "cutoff", "stock" or "financ"). Sec. 4.1 uses "select datasets from the Chronos ... and GIFT-Eval ... pretraining corpora"; Table 6 ("Real univariate datasets used for pretraining Chronos-2") lists 23 datasets in energy, nature, transport, web, cloud ops and M4 ("Various"; M4 includes finance series, but no stock-price dataset is named). The GIFT-Eval pretraining part is not itemized: unverified |
+| timesfm25 | 2025-09-15 (release; GitHub README "Update - Sept. 15, 2025 TimesFM 2.5 is out!") | model card "Data": GiftEvalPretrain; "Wikimedia Pageviews, cutoff Nov 2023"; "Google Trends top queries, cutoff EoY 2022"; "Synthetic and augmented data". No overall cutoff; the GiftEvalPretrain part is undated: unverified |
 
-Where no cutoff is stated, the release date is used: nothing after it can be in the training data.
+Where no cutoff is stated, the release date is used: nothing after it can be in the training data. Checked on
+2026-11-24 against the papers' HTML text and the model cards. Moirai-2 is not used.
 
 ## 7. Hypotheses and decision rule
 - H1: the ensemble's mean daily rank IC on the test is above 0 (one-sided, 5%).

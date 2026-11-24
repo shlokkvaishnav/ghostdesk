@@ -248,6 +248,28 @@ A constant window has variance exactly 0.
 | `score(rows, opens, half_spread, sectors, fixed_bps=2)` | Realized open(t+1)→open(t+2) return, residual, cost, pnl, profitable (owner's rule: the pick made money after costs), abs_error. |
 | `model_summary(scored)` | Per model: sessions, share of profitable picks, cumulative decile-book P&L, mean rank IC, mean absolute error. |
 
+## ghostdesk/live/evaluate.py — forward scoring of the ledger (core, D37)
+| Name | Contract |
+|---|---|
+| `MIN_NAMES`, `REVERSALS`, `DAILY_COLUMNS` | Floor of 30 stocks for a rank IC; the two reversal baselines; columns of the daily table. |
+| `daily_metrics(scored)` | One row per (session, model) from `ledger.score` output: rank IC, directional hit rate of the picks, profitable share after costs, picks, mean abs error, decile-book P&L. Empty in, empty out. |
+| `summarize(daily)` | Per model: days, mean IC, t, hit rate, profitable share, abs error, P&L, differences to the reversal baselines and to the zero-signal model (IC 0, P&L 0); `forward_days` (0 on an empty ledger). |
+
+## ghostdesk/live/portfolio.py — the target book, tracked forward (core, D37)
+| Name | Contract |
+|---|---|
+| `YEAR`, `FIXED_BPS` | 252; 2 bps each way (same as `ledger.score`). |
+| `book_days(books, opens, half_spread, fixed_bps)` | Per matured session: gross, cost, net, turnover, gross exposure, stocks missing a price. `books`: session → `{"target": shares, "equity"}` as in `night_*.json`; priced at open(t+1) and open(t+2). |
+| `book_summary(days)` | Days, cumulative net return, Sharpe (None below 2 days), max drawdown, mean turnover, total cost. |
+| `curve(days)` | Cumulative return and drawdown per day for the page. |
+
+## ghostdesk/live/compare.py — validation against forward (core, D37)
+| Name | Contract |
+|---|---|
+| `HISTORICAL`, `FORWARD`, `METRICS` | The two labels ("historical validation", "independent forward test"); compared metrics. |
+| `load_validation(path)` | `validation.json` as a dict, `{}` if missing. |
+| `compare(validation, forward, book)` | Rows per model and metric with validation value and sessions next to forward value and days; headline "N days of forward data". Forward is None until data exists. |
+
 ## ghostdesk/live/nightly.py — the nightly run (core, D30)
 | Name | Contract |
 |---|---|

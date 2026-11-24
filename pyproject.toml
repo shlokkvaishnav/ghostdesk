@@ -7,7 +7,7 @@ dependencies = ["numpy", "pandas", "pyarrow", "requests", "lxml", "scipy", "duck
 
 [project.optional-dependencies]
 ml = ["torch"]
-dev = ["pytest", "ruff", "mkdocs-material==9.5.39", "lightgbm", "pyyaml"]
+dev = ["pytest", "ruff", "mypy", "mkdocs-material==9.5.39", "lightgbm", "pyyaml"]
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -26,3 +26,9 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+# Scoped type check: only the forward-evaluation modules (D37). Not a claim about the rest of the code.
+[tool.mypy]
+files = ["src/ghostdesk/live/evaluate.py", "src/ghostdesk/live/portfolio.py", "src/ghostdesk/live/compare.py"]
+ignore_missing_imports = true
+follow_imports = "silent"

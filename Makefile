@@ -1,5 +1,5 @@
 PY := PYTHONPATH=src .venv/bin/python -u
-.PHONY: install install-ml test lint format docs check universe prices update sectors
+.PHONY: typecheck install install-ml test lint format docs check universe prices update sectors
 
 install:
 	python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
@@ -14,7 +14,7 @@ format:
 	.venv/bin/ruff format src tests scripts
 docs:
 	.venv/bin/mkdocs build --strict -q
-check: lint test docs
+check: lint typecheck test docs
 
 universe:
 	$(PY) scripts/data/build_universe.py
@@ -24,3 +24,6 @@ update:
 	$(PY) scripts/data/update_prices.py
 sectors:
 	$(PY) scripts/data/build_sectors.py
+
+typecheck:
+	.venv/bin/mypy

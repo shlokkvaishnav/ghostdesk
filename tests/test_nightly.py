@@ -143,3 +143,15 @@ def test_trading_is_on_only_for_the_exact_value_on():
     for v in (None, "", "off", "ON", "On", " on", "on ", "true", "1", "yes"):
         assert not trading_enabled(v), v
     assert Deps(broker=None, now=None, predict=None, target=None, ledger=None, store=None).trading is False
+
+
+def test_refused_handles_sessions_with_no_following_open():
+    """A prediction whose session has no later open yet has no first price: it is neither scored nor refused, and the
+    comparison must not mix time zones (a live night run failed on this)."""
+    opens = pd.DataFrame({"A": [100.0, 100.0], "B": [50.0, 50.0]},
+                         index=pd.to_datetime(["2026-12-07", "2026-12-08"]))
+    made = pd.Timestamp("2026-12-08 21:00", tz="UTC")
+    r = pd.DataFrame({"session": [pd.Timestamp("2026-12-08")], "made_at": [made], "model": ["a"],
+                      "symbol": ["A"], "score": [1.0], "rank": [1.0], "side": [1], "pred_return": [0.0]})
+    assert refused(r, opens).empty
+    assert score(r, opens).empty

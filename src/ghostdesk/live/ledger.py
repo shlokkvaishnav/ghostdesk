@@ -189,6 +189,7 @@ def refused(ledger_rows: pd.DataFrame, opens: pd.DataFrame) -> pd.DataFrame:
     first = ledger_rows["session"].map(
         lambda s: first_open_utc(days[i]) if (i := days.searchsorted(pd.Timestamp(s), side="right")) < len(days)
         else pd.NaT)
+    first = pd.to_datetime(first, utc=True)  # naive opens are UTC; NaT stays NaT
     late = first.notna() & (ledger_rows["made_at"].map(_utc) >= first)
     return ledger_rows[late.to_numpy(dtype=bool)]
 

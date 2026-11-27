@@ -458,10 +458,9 @@ the decision of an old entry — add a new entry that replaces it.
 - **Type check:** mypy runs on the three evaluation modules only (`make typecheck`); the rest is not type-checked.
 
 ### D38 — Switch-over: the monthly desk archived, order execution disabled, pinned models, failures fail the run (2026-11-24)
-- **Archive:** the monthly paper desk was archived and closed on 2026-11-24 (198 positions sold, 0 left; equity
-  $100,582.38 from $100,000). Its account record (every order, fill and the portfolio history, without account
-  number, ids or keys) is in `docs/archive/monthly-desk-2026-11/`, written by the read-only
-  `scripts/ops/archive_account.py`.
+- **Archive:** the monthly paper desk was archived and closed on 2026-11-24 (198 positions sold, 0 left). Its account record
+  (every order, fill and the portfolio history) is kept outside the repository and not published; it was written by the
+  read-only `scripts/ops/archive_account.py`.
 - **Execution disabled:** the paper account holds nothing and no order is placed. `nightly.yml` replaces `live.yml`,
   sets `TRADING` to `off` in the workflow itself (not from the repository variable) and has no flatten or order mode.
   In the code the kill switch is on only when `TRADING` is exactly `"on"`, and `Deps.trading` defaults to off.

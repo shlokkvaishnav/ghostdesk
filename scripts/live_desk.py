@@ -212,13 +212,8 @@ def flatten() -> None:
 
 # ---------------------------------------------------------------------------------------------------- site
 def site() -> None:
-    from ghostdesk.live.dashboard_data import equity_curve, reconcile
-
-    broker = Broker()
-    acct = broker.account()
-    hist = broker.history()
-    start = f"{hist['day'].min():%Y-%m-%d}" if len(hist) else f"{now() - pd.Timedelta(days=30):%Y-%m-%d}"
-    spy = AlpacaClient().bars(["SPY"], start, (now() - pd.Timedelta(minutes=20)).isoformat(), adjustment="all")
+    """Public data for the page: research only. The paper account (equity, positions, curve, reconciliation)
+    belongs to the retired monthly desk and is kept out of the public site (see docs/archive, D38)."""
     led = Ledger(LIVE / "ledger")
     rows = led.read()
     latest = rows[rows["session"] == rows["session"].max()] if len(rows) else rows
@@ -230,13 +225,9 @@ def site() -> None:
     fe = LIVE / "forward_eval.json"
     nights = sorted(LIVE.glob("night_*.json"))
     last_night = json.loads(nights[-1].read_text()) if nights else {}
-    positions = broker.position_rows()
-    eq = float(acct.get("equity") or 0)
     h = json.loads((LIVE / "health.json").read_text()) if (LIVE / "health.json").exists() else {}
     data = {
         "updated": now().isoformat(timespec="minutes"),
-        "account": {"equity": eq, "cash": float(acct.get("cash") or 0)},
-        "equity_curve": equity_curve(hist, spy),
         "predictions": {"session": f"{pd.Timestamp(latest['session'].iloc[0]):%Y-%m-%d}" if len(latest) else None,
                         "models": sorted(latest["model"].unique().tolist()) if len(latest) else [],
                         "stocks": int(latest["symbol"].nunique()) if len(latest) else 0,
@@ -246,14 +237,11 @@ def site() -> None:
         "forward_eval": json.loads(fe.read_text()) if fe.exists() else None,
         "ledger": {"sessions": int(rows["session"].nunique()) if len(rows) else 0, "rows": len(rows),
                    "verified": led.verify()[0]},
-        "positions": [{"symbol": p["symbol"], "qty": float(p["qty"]), "value": float(p["market_value"]),
-                       "pnl": float(p.get("unrealized_pl") or 0)} for p in positions],
-        "recon": reconcile(last_night.get("target", {}), positions, eq) if last_night and eq else None,
         "last_night": {k: last_night.get(k) for k in ("session", "complete", "runs", "rejected", "unreached")},
         "health": h,
     }
     data["health"] = {**h, "site": {"at": now().isoformat(timespec="seconds"), "ok": True,
-                                    "message": f"{len(positions)} positions, {data['ledger']['sessions']} ledger sessions"}}
+                                    "message": f"{data['ledger']['sessions']} ledger sessions"}}
     SITE_DATA.mkdir(exist_ok=True)
     (SITE_DATA / "live.json").write_text(json.dumps(data, separators=(",", ":"), default=_json))
     health("site", True, data["health"]["site"]["message"])

@@ -28,7 +28,7 @@ scores them forward; no order is placed.
 | 6a. Trigger | Cloudflare Worker code and setup guide (owner deploys) | `worker/`, [trigger-setup.md](trigger-setup.md) |
 
 | 7. Forward evaluation | scoring of the ledger (rank IC, hit rate, error, zero-signal and reversal baselines), book tracking (return, Sharpe, drawdown, turnover, Corwin-Schultz cost), validation-versus-forward table and page section; runs on an empty ledger ("0 days of forward data"); no forward result exists yet | `scripts/live_eval.py`, `tests/test_evaluate.py`, D37 |
-| 8. Switch-over (D38) | monthly desk archived (1,367 orders, 1,855 fills) and closed (0 positions, equity $100,582.38); `live.yml` replaced by `nightly.yml` with `TRADING` fixed off; models published as the pinned release `models-v1` with `MODEL_MANIFEST.json`; timing guard; model and pipeline errors fail the run | `docs/archive/monthly-desk-2026-11/`, `docs/results/MODEL_MANIFEST.json`, `tests/test_workflows.py` |
+| 8. Switch-over (D38) | monthly desk archived (kept outside the repository, not published) and closed (0 positions); `live.yml` replaced by `nightly.yml` with `TRADING` fixed off; models published as the pinned release `models-v1` with `MODEL_MANIFEST.json`; timing guard; model and pipeline errors fail the run | `docs/archive/monthly-desk-2026-11/`, `docs/results/MODEL_MANIFEST.json`, `tests/test_workflows.py` |
 
 ## Next
 3. Kaggle: Transformer and foundation-model kernels pushed 2026-11-24, still queued; GPU on hold for another

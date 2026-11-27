@@ -59,3 +59,29 @@ scores them forward; no order is placed.
   2026-11-26 was Thanksgiving (market closed). Session 2026-11-24 is scored after the 2026-11-27 open, and session
   2026-11-25 after the 2026-11-30 open. The first scored day is therefore expected on the 2026-11-28 scheduled run.
   Zero forward days on 2026-11-27 is expected: the 2026-11-27 open had not yet happened when that run started.
+
+## Temporal integrity of the frozen models (verified 2026-11-27, read-only)
+
+Result: **passes**, with the caveats below. Checked against `docs/results/MODEL_MANIFEST.json`, `scripts/research/fit_live_models.py`,
+`src/ghostdesk/research/dataset.py` (`load_panel`, `guard`), `src/ghostdesk/research/models.py` (`rank_features`) and `docs/results/validation.json`.
+
+- **Training data cutoff.** The nightly models (reversal 1-day and 5-day, ridge, LightGBM) were fitted on sessions
+  2016-01-04 to 2022-12-28, with the last two labels dropped. The panel's recorded end is 2022-12-30 (data hash `…|20221230|…`).
+  `load_panel` refuses any end date in the test period (`guard`), and the fit's end is the validation end (2022-12-31).
+- **Feature transformations.** Alpha158 features use windows that end at the session (a test checks that no feature
+  reads a later session). `rank_features` ranks each feature across stocks within one session, so no mean, scale or other
+  statistic is fitted over time.
+- **Hyperparameters and ensemble weights.** Chosen on the 2021–2022 validation runs only (`validation.json` has no 2023-or-later
+  data; its only 2026 date is its run timestamp, 2026-11-24). This is in-sample for those choices, and the page says so.
+- **Artifacts.** Fitted once on 2026-11-24 (`fitted_at` in the manifest, 17:08 UTC). The release `models-v1` was published
+  at 17:28 UTC, before the first ledger write (2026-11-25 00:01 UTC). Each night checks the file hashes against the manifest.
+- **Foundation models and the Transformer are not in the nightly ensemble.** Chronos-2 and TimesFM-2.5 are validation-only,
+  and the Transformer and Kronos are not published (their pretraining data may overlap the validation years).
+- **Membership.** The S&P 500 membership is point-in-time from dated changes, not a current list.
+
+Caveats (not leakage into the predictions):
+- Sector labels (SIC groups) are one snapshot and are used only by the optimizer's sector-neutral constraint, never by the
+  models. Historical sector labels are not point-in-time.
+- The 2023-01 to 2026-10 test period is locked. The pre-registration is still `Status: draft`, so no test-period result exists
+  and none is claimed. The forward ledger (from 2026-11-24) lies after that period, so it does not overlap any data the models saw.
+- Forward evaluation is the only independent evidence so far. It has 0 scored days (see the timing section above).

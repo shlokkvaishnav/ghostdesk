@@ -146,7 +146,8 @@ def run_night(d: Deps, sessions: pd.DataFrame, cfg: NightConfig = NightConfig())
         d.log(f"ledger: added the chain line of {repaired} (crash between the two writes)")
     state = read_state(d.store, s) or {"session": f"{s:%Y-%m-%d}", "runs": [], "orders": [], "rejected": {}}
     state["runs"].append(now.isoformat())
-    if not d.ledger.has(s):
+    appended = not d.ledger.has(s)
+    if appended:
         nxt = sessions[sessions["date"] > s]
         if nxt.empty:
             _write(d.store, s, state)
@@ -172,7 +173,8 @@ def run_night(d: Deps, sessions: pd.DataFrame, cfg: NightConfig = NightConfig())
     if not d.trading:
         state["trading"] = "off"
         _write(d.store, s, state)
-        return True, f"ledger {s:%Y-%m-%d} written; trading is off (no order)", {"trading": "off"}
+        how = "written" if appended else f"already in the ledger, written {line['written_at']}"
+        return True, f"ledger {s:%Y-%m-%d} {how}; trading is off (no order)", {"trading": "off"}
     if not dec.trade:
         _write(d.store, s, state)
         return dec.ok, dec.reason, {}

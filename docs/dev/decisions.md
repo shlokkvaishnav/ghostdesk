@@ -459,7 +459,7 @@ the decision of an old entry — add a new entry that replaces it.
 
 ### D38 — Switch-over: the monthly desk archived, order execution disabled, pinned models, failures fail the run (2026-11-24)
 - **Archive:** the monthly paper desk was archived and closed on 2026-11-24 (198 positions sold, 0 left). Its account record
-  (every order, fill and the portfolio history) is kept outside the repository and not published; it was written by the
+  (every order, fill and the portfolio history) is removed from the current tree and site and kept in git history (commit 80f8347); it was written by the
   read-only `scripts/ops/archive_account.py`.
 - **Execution disabled:** the paper account holds nothing and no order is placed. `nightly.yml` replaces `live.yml`,
   sets `TRADING` to `off` in the workflow itself (not from the repository variable) and has no flatten or order mode.

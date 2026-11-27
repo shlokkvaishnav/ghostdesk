@@ -43,3 +43,19 @@ scores them forward; no order is placed.
   research data only when `build_universe.py` runs again. The live loop reads today's members each night.
 - `data/raw/` (SEC cache) and the old study files in `data/` are no longer needed except the submissions JSON for
   sectors; the owner decides when to delete them.
+
+## Forward evaluation: timing rules and the count
+
+- **Two timestamps per prediction.** `made_at` is the real UTC time of the run that generated the predictions, and
+  `written_at` in the ledger is the same time. The intended session (the close the predictions follow) is a separate
+  field. A prediction counts only if `made_at` is earlier than the first open after its session (09:30 New York time).
+- **No backfill.** The night step writes only the last closed session. A run that starts after the next open does
+  not write that session (the session is recorded as missed), so a late or retried run cannot create a prospective-looking
+  prediction. A second write for the same session is refused, and a re-run reports the existing entry with its original time.
+- **Refused rows.** Any row whose `made_at` is not earlier than that open is left out of scoring (`refused()`), and the
+  forward evaluation uses scored rows only. Historical validation (2021–2022) comes from `validation.json` and never
+  enters the ledger.
+- **Trading calendar.** The next session is taken from the price store, so weekends and exchange holidays are skipped.
+  2026-11-26 was Thanksgiving (market closed). Session 2026-11-24 is scored after the 2026-11-27 open, and session
+  2026-11-25 after the 2026-11-30 open. The first scored day is therefore expected on the 2026-11-28 scheduled run.
+  Zero forward days on 2026-11-27 is expected: the 2026-11-27 open had not yet happened when that run started.

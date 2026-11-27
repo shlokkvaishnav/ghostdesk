@@ -83,6 +83,15 @@
       <div class="panel step"><span class="n">3 · PORTFOLIO</span><b>Risk-constrained optimizer</b><p>A cvxpy optimizer turns the scores into a long-short book with limits on position size, sector and beta exposure, and a penalty on trading costs.</p></div>
       <div class="panel step"><span class="n">4 · PAPER TRADING</span><b>Order execution is off</b><p>Every night the predictions and the target book go into an append-only ledger before the next open and are scored forward. No order is sent.</p></div>
     </div>
+    <div class="panel" style="margin-top:1rem">
+      <p class="cap" style="margin:0 0 .6rem"><b>Four kinds of number on this page</b></p>
+      <ul class="picks" style="grid-template-columns:1fr">
+        <li style="grid-template-columns:1fr"><span><b>Historical validation (2021–2022):</b> simulated back-tests on past data. These years helped choose the models, so they are not an independent test.</span></li>
+        <li style="grid-template-columns:1fr"><span><b>Forward evaluation:</b> the nightly predictions, scored only after the next opens. This is the independent evidence, and it grows one session at a time.</span></li>
+        <li style="grid-template-columns:1fr"><span><b>Model leaderboard:</b> hypothetical trades taken from the ledger picks, after assumed costs. Not an account.</span></li>
+        <li style="grid-template-columns:1fr"><span><b>Paper-trading execution:</b> none. The paper account holds nothing, and automated orders are disabled.</span></li>
+      </ul>
+    </div>
   </section>
 
   <section>

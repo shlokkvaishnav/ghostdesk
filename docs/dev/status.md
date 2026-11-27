@@ -85,3 +85,16 @@ Caveats (not leakage into the predictions):
 - The 2023-01 to 2026-10 test period is locked. The pre-registration is still `Status: draft`, so no test-period result exists
   and none is claimed. The forward ledger (from 2026-11-24) lies after that period, so it does not overlap any data the models saw.
 - Forward evaluation is the only independent evidence so far. It has 0 scored days (see the timing section above).
+
+## Optimizer cost model: a limitation (2026-11-27)
+
+- Both books in `docs/results/validation.json` (LightGBM scores, 501 sessions, 2021-2022) use the same cost function
+  (`research/backtest.py::evaluate`): one-way cost per unit traded, either the Corwin-Schultz half-spread or a fixed grid.
+- The 21-day Corwin-Schultz half-spread is clipped at zero (`half_spread`), and is exactly zero for 63.9% of member-days
+  in 2021-2022 (median 0, mean 4.19 bps). The optimizer's penalty uses that estimate plus 2 bps, so it trades mostly
+  in names with a zero estimate: implied cost 0.1 bps a day against 4.2 bps for the decile book.
+- So the spread-model net Sharpe (optimizer 1.04, decile -0.77) is the most favourable comparison. Under one fixed cost:
+  1 bps 0.73 vs 0.67, 2 bps 0.39 vs 0.22, 5 bps -0.63 vs -1.14. Gross: 1.07 vs 1.12. Turnover 0.83 vs 2.61 (-68%).
+- Public claims use the fixed 2 bps comparison. The page's validation tile still shows the spread-model Sharpe; changing it
+  is an owner decision.
+

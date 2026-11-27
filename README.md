@@ -31,10 +31,17 @@ independent test.
 | Measure (LightGBM scores) | Decile book | Optimized book |
 |---|---|---|
 | Daily turnover | 2.61 | 0.83 (-68%) |
-| Net Sharpe after the spread estimate | -0.77 | 1.04 |
+| Gross Sharpe (no costs) | 1.12 | 1.07 |
+| Net Sharpe at a fixed 1 bps per unit traded | 0.67 | 0.73 |
+| Net Sharpe at a fixed 2 bps per unit traded | 0.22 | 0.39 |
+| Net Sharpe after the Corwin-Schultz spread estimate | -0.77 | 1.04 |
 | Net at a fixed 5 bps per trade | -6.6 bps/day | -1.5 bps/day |
 
-Both books lose money at a fixed 5 bps cost. Forward test (days after the models were frozen): 0 days so far.
+Both books lose money at a fixed 5 bps cost. Costs are one-way, per unit of traded value. The spread-estimate row is
+the most favourable one and should not be read as the headline: the 21-day Corwin-Schultz half-spread is clipped at
+zero, and it is exactly zero for 63.9% of member-days in 2021-2022. The optimizer uses the same estimate in its trading
+penalty, so it trades mostly where the estimated cost is zero (implied 0.1 bps against 4.2 bps for the decile book).
+The optimizer's advantage is lower trading cost; its gross Sharpe is slightly below the decile book's. Forward test (days after the models were frozen): 0 days so far.
 
 The test period (2023-01 to 2026-10) stays locked in code until its pre-registration is final and timestamped.
 
